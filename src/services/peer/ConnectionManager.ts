@@ -111,11 +111,38 @@ export class ConnectionManager {
 
     public setupConnectionEvents(conn: DataConnection): void {
         const onOpen = () => {
-            console.log('Connection opened/accepted with:', conn.peer);
+            console.log('Connection open with:', conn.peer);
             this.connections.set(conn.peer, conn);
-            this.service.emit('connected', { peerId: conn.peer });
+            // Do NOT emit 'connected' yet. 
+            // Wait for handshake response (sender) or just start handshake (receiver).
             this.startPing(conn.peer);
             this.sendHandshake(conn.peer);
+
+            // SPECIAL CASE: If we are the receiver (calling this from accept()),
+            // we effectively just accepted. We can consider ourselves connected immediately
+            // or wait for the sender to ack our handshake.
+            // But if we don't emit 'connected', the UI won't update for the receiver.
+            // Let's rely on handleHandshake to emit 'connected' for the OTHER side.
+            // But for OUR side, we need to know if we are the initiator?
+            // Actually, safe pattern:
+            // 1. Send handshake.
+            // 2. Receive handshake -> Reply.
+            // 3. Receive handshake-response -> Emit 'connected'.
+
+            // However, this leaves a gap where we are "open" but UI says disconnected.
+            // Let's stick to the protocol:
+            // Sender: setup -> onOpen -> sendHandshake -> WAIT.
+            // Receiver: setup -> onOpen -> sendHandshake -> WAIT.
+
+            // BUT, Receiver calls 'accept()' manually.
+            // Receiver UI should update immediately because USER action confirmed it.
+            // We can emit 'connected' here ONLY if we think we assume success.
+            // But user complains "Sender connects before Receiver accepts".
+            // So Sender MUST Wait.
+
+            // Checking if we initiated connection vs receiving?
+            // conn.metadata usually has info, but let's just use the handshake flow.
+            // Sender won't receive 'handshake-response' until Receiver accepts.
         };
 
         if (conn.open) {
@@ -161,6 +188,10 @@ export class ConnectionManager {
     public handleHandshake(info: DeviceInfo, peerId: string): void {
         this.peerDeviceInfo.set(peerId, info);
         const conn = this.connections.get(peerId);
+
+        // If we are pending, we do nothing (handled in addPending).
+        // If we are in 'connections' (meaning we accepted or we initiated), we reply.
+
         if (conn && conn.open) {
             conn.send({
                 type: 'handshake-response', payload: {
@@ -170,11 +201,20 @@ export class ConnectionManager {
                     timestamp: Date.now()
                 }
             });
+
+            // If we are the receiver (accepted connection), we can mark fully connected now that we got a handshake
+            // from the sender (verifying they are alive).
+            // Emitting 'connected' here ensures we only show UI connected when we are sure.
+            this.service.emit('connected', { peerId: conn.peer });
         }
     }
 
     public handleHandshakeResponse(info: DeviceInfo, peerId: string): void {
         this.peerDeviceInfo.set(peerId, info);
+        console.log('Handshake verified with:', peerId);
+        // SENDER logic: We sent handshake, got response. NOW we are connected.
+        this.service.emit('connected', { peerId: peerId });
+        toast.success('Connection verification successful');
     }
 
     private getBrowserName(): string {
