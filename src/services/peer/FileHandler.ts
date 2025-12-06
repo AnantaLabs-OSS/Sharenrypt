@@ -95,7 +95,7 @@ export class FileHandler {
                 speed: 0,
                 eta: 0
             };
-            this.service.emit('transfer-progress', { transfer });
+            this.service.emit('file-progress', { ...transfer });
 
             conn.send({
                 type: 'file-start',
@@ -181,8 +181,8 @@ export class FileHandler {
                 const progress = Math.round((offset / file.size) * 100);
                 const eta = speed > 0 ? Math.ceil((file.size - offset) / speed) : 0;
 
-                this.service.emit('transfer-progress', {
-                    transfer: { ...transfer, progress, status: 'encrypting', speed, eta },
+                this.service.emit('file-progress', {
+                    ...transfer, progress, status: 'encrypting', speed, eta
                 });
             }
 
@@ -196,7 +196,7 @@ export class FileHandler {
 
             transfer.status = 'completed';
             transfer.progress = 100;
-            this.service.emit('transfer-progress', { transfer });
+            this.service.emit('file-sent', { ...transfer });
 
         } catch (error) {
             console.error('File send error:', error);
@@ -248,7 +248,7 @@ export class FileHandler {
                 startTime: Date.now()
             });
 
-            this.service.emit('incoming-transfer', { transfer });
+            this.service.emit('file-incoming', transfer);
         } catch (e) {
             console.error("Failed to start file transfer:", e);
         }
@@ -270,7 +270,7 @@ export class FileHandler {
             const remaining = data.totalSize - bytesReceived;
             const eta = speed > 0 ? Math.ceil(remaining / speed) : 0;
 
-            this.service.emit('transfer-progress', {
+            this.service.emit('file-progress', {
                 transfer: {
                     id: transfer.id,
                     name: transfer.name,
@@ -347,7 +347,7 @@ export class FileHandler {
                 eta: 0
             };
 
-            this.service.emit('transfer-completed', { transfer: fileTransfer });
+            this.service.emit('file-received', { ...fileTransfer });
 
         } catch (error) {
             console.error('Finalization error:', error);
