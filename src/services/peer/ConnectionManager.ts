@@ -57,36 +57,65 @@ export class ConnectionManager {
     }
 
     public addPending(conn: DataConnection): void {
-        if (this.connections.has(conn.peer) || this.pendingConnections.has(conn.peer)) {
-            console.log('Ignoring duplicate connection from:', conn.peer);
-            return;
+        const peerId = conn.peer;
+
+        // If we are already fully connected, we might want to reject or accept if it's a reconnection.
+        // For now, if we have a live connection, we ignore the new one to prevent disruption.
+        if (this.connections.has(peerId)) {
+            const activeConn = this.connections.get(peerId);
+            if (activeConn && activeConn.open) {
+                console.log('Ignoring duplicate connection (already active) from:', peerId);
+                return;
+            } else {
+                // If existing connection is dead, clean it up
+                console.log('Replacing dead active connection with new one:', peerId);
+                this.disconnect(peerId);
+            }
         }
 
-        console.log('Incoming connection from:', conn.peer);
-        this.pendingConnections.set(conn.peer, conn);
-        this.service.emit('connection-request', { peerId: conn.peer });
+        // If we have a pending connection, we REPLACE it with the new one.
+        // This handles cases where the first attempt failed/stalled but was not removed.
+        if (this.pendingConnections.has(peerId)) {
+            console.log('Replacing duplicate pending connection from:', peerId);
+            const oldConn = this.pendingConnections.get(peerId);
+
+            // Clean up old listeners
+            const oldDataHandler = this.pendingDataHandlers.get(peerId);
+            const oldCloseHandler = this.pendingCloseHandlers.get(peerId);
+            if (oldDataHandler && oldConn) oldConn.off('data', oldDataHandler);
+            if (oldCloseHandler && oldConn) oldConn.off('close', oldCloseHandler);
+
+            this.pendingDataHandlers.delete(peerId);
+            this.pendingCloseHandlers.delete(peerId);
+
+            if (oldConn) oldConn.close();
+        }
+
+        console.log('Incoming connection from:', peerId);
+        this.pendingConnections.set(peerId, conn);
+        this.service.emit('connection-request', { peerId });
 
         const openHandler = () => {
-            console.log('Pending connection opened from:', conn.peer);
+            console.log('Pending connection opened from:', peerId);
         };
 
         const closeHandler = () => {
-            console.log('Pending connection closed:', conn.peer);
-            this.pendingConnections.delete(conn.peer);
-            this.service.emit('disconnected', { peerId: conn.peer });
+            console.log('Pending connection closed:', peerId);
+            this.pendingConnections.delete(peerId);
+            this.service.emit('disconnected', { peerId });
             // Cleanup references
-            this.pendingDataHandlers.delete(conn.peer);
-            this.pendingCloseHandlers.delete(conn.peer);
+            this.pendingDataHandlers.delete(peerId);
+            this.pendingCloseHandlers.delete(peerId);
         };
 
         const dataHandler = (data: any) => {
             if (data && typeof data === 'object' && (data as any).type === 'handshake') {
-                this.handleHandshake((data as any).payload, conn.peer);
+                this.handleHandshake((data as any).payload, peerId);
             }
         };
 
-        this.pendingDataHandlers.set(conn.peer, dataHandler);
-        this.pendingCloseHandlers.set(conn.peer, closeHandler);
+        this.pendingDataHandlers.set(peerId, dataHandler);
+        this.pendingCloseHandlers.set(peerId, closeHandler);
 
         conn.on('open', openHandler);
         conn.on('close', closeHandler);
