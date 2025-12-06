@@ -115,7 +115,7 @@ function App() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-10 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col h-screen">
+      <div className="relative z-10 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col min-h-screen pb-20">
         {/* Header Section */}
         <motion.div
           initial={{ y: -50, opacity: 0 }}
