@@ -50,42 +50,29 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
 
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-medium text-slate-200 truncate pr-4">{file.name}</h3>
-                  {getStatusIcon(file.status)}
-                </div>
-
-                <p className="text-xs text-slate-400 mb-2">{formatSize(file.size)}</p>
-
-                {file.status === 'transferring' ? (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-cyan-300 font-mono">
-                      <span>{file.progress}%</span>
-                      <span>
-                        {file.speed ? `${formatSize(file.speed)}/s` : ''}
-                        {file.eta ? ` • ${Math.ceil(file.eta)}s` : ''}
-                      </span>
-                    </div>
-                    <ProgressBar
-                      progress={file.progress}
-                      status=""
-                      color="bg-cyan-500"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={`px-2 py-0.5 rounded-full border ${file.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                      file.status === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
-                        'bg-slate-700/50 border-slate-600 text-slate-400'
-                      }`}>
-                      {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
-                    </span>
-                  </div>
-                )}
+                </span>
               </div>
+              <ProgressBar
+                progress={file.progress}
+                status=""
+                color="bg-cyan-500"
+              />
             </div>
-          </motion.div>
+            ) : (
+            <div className="flex items-center justify-between text-xs">
+              <span className={`px-2 py-0.5 rounded-full border ${file.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
+                file.status === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
+                  'bg-slate-700/50 border-slate-600 text-slate-400'
+                }`}>
+                {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
+              </span>
+            </div>
+                )}
+          </div>
+            </div>
+          </motion.div >
         ))}
-      </AnimatePresence>
-    </div>
+      </AnimatePresence >
+    </div >
   );
 };
