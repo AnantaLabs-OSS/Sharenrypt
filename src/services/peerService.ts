@@ -674,6 +674,7 @@ export class PeerService {
         });
         break;
       case 'message-read':
+        console.log('Received read receipt for:', message.payload.messageId);
         this.emit('message-read', {
           peerId,
           messageId: message.payload.messageId
