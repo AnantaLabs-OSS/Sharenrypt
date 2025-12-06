@@ -42,7 +42,7 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
             className="bg-white/50 backdrop-blur-sm border border-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-all"
           >
             <div className="flex items-center space-x-4">
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.1 }}
                 className="flex-shrink-0"
               >
@@ -53,18 +53,18 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
                 <p className="text-sm text-gray-500">{formatSize(file.size)}</p>
                 {file.status === 'transferring' && (
                   <>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>{file.progress}%</span>
+                      <span>
+                        {file.speed ? `${formatSize(file.speed)}/s` : ''}
+                        {file.eta ? ` • ${Math.ceil(file.eta)}s remaining` : ''}
+                      </span>
+                    </div>
                     <ProgressBar
                       progress={file.progress}
                       status="Transfer Progress"
                       color="bg-blue-500"
                     />
-                    {file.encryptionProgress !== undefined && (
-                      <ProgressBar
-                        progress={file.encryptionProgress}
-                        status="Encryption Progress"
-                        color="bg-purple-500"
-                      />
-                    )}
                   </>
                 )}
               </div>

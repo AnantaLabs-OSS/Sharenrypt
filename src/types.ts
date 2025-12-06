@@ -6,6 +6,8 @@ export interface FileTransfer {
   progress: number;
   encryptionProgress?: number;
   status: 'pending' | 'transferring' | 'completed' | 'error';
+  speed?: number; // bytes per second
+  eta?: number; // seconds remaining
 }
 
 export interface PeerConnection {

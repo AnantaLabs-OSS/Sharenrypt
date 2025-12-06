@@ -472,6 +472,7 @@ export class PeerService {
       const worker = new Worker(new URL('../workers/encryption.worker.ts', import.meta.url), { type: 'module' });
 
       let offset = 0;
+      const startTime = Date.now();
       const stream = file.stream();
       const reader = stream.getReader();
 
@@ -523,9 +524,17 @@ export class PeerService {
         // Use offset for progress (approximate, since encrypted size is slightly larger due to tags)
         const progress = Math.round((offset / file.size) * 100);
 
+        // Calculate Speed & ETA
+        const elapsed = (Date.now() - startTime) / 1000; // seconds
+        const speed = offset / elapsed; // bytes per second
+        const remainingBytes = file.size - offset;
+        const eta = speed > 0 ? remainingBytes / speed : 0;
+
         this.emit('file-progress', {
           id: transfer.id,
           progress,
+          speed,
+          eta,
           status: 'encrypting'
         });
       }
@@ -604,7 +613,9 @@ export class PeerService {
       this.incomingTransfers.set(metadata.id, {
         ...metadata,
         chunks: [],
+        chunks: [],
         receivedSize: 0,
+        startTime: Date.now(), // Track start time
         cryptoKey, // Store the imported key object for fast chunk decryption
       });
 
@@ -637,9 +648,20 @@ export class PeerService {
 
       const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
 
+      // Update received size
+      transfer.receivedSize = data.offset + data.chunk.byteLength;
+
+      // Calculate Speed & ETA
+      const elapsed = (Date.now() - transfer.startTime) / 1000;
+      const speed = transfer.receivedSize / elapsed;
+      const remainingBytes = data.totalSize - transfer.receivedSize;
+      const eta = speed > 0 ? remainingBytes / speed : 0;
+
       this.emit('file-progress', {
         id: transfer.id,
         progress,
+        speed,
+        eta,
         status: 'downloading',
       });
     } catch (e) {
