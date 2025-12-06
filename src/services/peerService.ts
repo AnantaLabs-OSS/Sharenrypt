@@ -1,4 +1,4 @@
-import Peer, { DataConnection } from 'peerjs';
+import { Peer, DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import toast from 'react-hot-toast';
 import { FileTransfer } from '../types';
