@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { peerService } from '../services/peerService';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { PeerService } from '../services/peerService';
 import { FileTransfer, PeerConnection } from '../types';
+
+// Create singleton instance
+let peerServiceInstance: PeerService | null = null;
 
 export const usePeerConnection = () => {
   const [peerId, setPeerId] = useState<string>('');
@@ -9,11 +12,31 @@ export const usePeerConnection = () => {
   const [pendingConnections, setPendingConnections] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
 
+  const peerServiceRef = useRef<PeerService | null>(null);
+
   useEffect(() => {
-    // Set peer ID
-    setPeerId(peerService.getPeerId());
-    
-    // Set up event listeners
+    // Initialize PeerService once
+    if (!peerServiceInstance) {
+      peerServiceInstance = new PeerService();
+    }
+
+    peerServiceRef.current = peerServiceInstance;
+
+    // Set peer ID once it's ready
+    const updatePeerId = () => {
+      const id = peerServiceInstance!.getPeerId();
+      if (id) {
+        setPeerId(id);
+      }
+    };
+
+    updatePeerId();
+
+    // Listen for ready event
+    const handleReady = (data: { peerId: string }) => {
+      setPeerId(data.peerId);
+    };
+
     const handleConnection = (data: { peerId: string }) => {
       setConnections(prev => {
         if (!prev.find(c => c.id === data.peerId)) {
@@ -23,91 +46,127 @@ export const usePeerConnection = () => {
       });
       setConnectionStatus('connected');
     };
-    
+
     const handleDisconnection = (data: { peerId: string }) => {
       setConnections(prev => prev.filter(conn => conn.id !== data.peerId));
     };
-    
+
     const handleConnectionRequest = (data: { peerId: string }) => {
-      setPendingConnections(prev => [...prev, data.peerId]);
+      setPendingConnections(prev => {
+        if (!prev.includes(data.peerId)) {
+          return [...prev, data.peerId];
+        }
+        return prev;
+      });
     };
-    
-    const handleFileTransferStart = (data: FileTransfer) => {
-      setFiles(prev => [...prev, data]);
+
+    const handleFileIncoming = (data: FileTransfer) => {
+      setFiles(prev => {
+        if (!prev.find(f => f.id === data.id)) {
+          return [...prev, data];
+        }
+        return prev;
+      });
     };
-    
-    const handleFileTransferProgress = (data: Partial<FileTransfer>) => {
-      setFiles(prev => prev.map(file => 
-        file.id === data.id 
-          ? { ...file, ...data } 
+
+    const handleFileOutgoing = (data: FileTransfer) => {
+      setFiles(prev => {
+        if (!prev.find(f => f.id === data.id)) {
+          return [...prev, data];
+        }
+        return prev;
+      });
+    };
+
+    const handleFileProgress = (data: Partial<FileTransfer>) => {
+      setFiles(prev => prev.map(file =>
+        file.id === data.id
+          ? { ...file, ...data }
           : file
       ));
     };
-    
-    const handleFileTransferComplete = (data: Partial<FileTransfer>) => {
-      setFiles(prev => prev.map(file => 
-        file.id === data.id 
-          ? { ...file, ...data } 
+
+    const handleFileReceived = (data: Partial<FileTransfer>) => {
+      setFiles(prev => prev.map(file =>
+        file.id === data.id
+          ? { ...file, ...data }
           : file
       ));
     };
-    
-    const handleFileTransferError = (data: Partial<FileTransfer>) => {
-      setFiles(prev => prev.map(file => 
-        file.id === data.id 
-          ? { ...file, ...data } 
+
+    const handleFileSent = (data: Partial<FileTransfer>) => {
+      setFiles(prev => prev.map(file =>
+        file.id === data.id
+          ? { ...file, ...data }
           : file
       ));
     };
-    
+
     // Register event listeners
-    peerService.on('connection', handleConnection);
-    peerService.on('disconnection', handleDisconnection);
-    peerService.on('connectionRequest', handleConnectionRequest);
-    peerService.on('fileTransferStart', handleFileTransferStart);
-    peerService.on('fileTransferProgress', handleFileTransferProgress);
-    peerService.on('fileTransferComplete', handleFileTransferComplete);
-    peerService.on('fileTransferError', handleFileTransferError);
-    
-    // Clean up event listeners
+    peerServiceInstance.on('ready', handleReady);
+    peerServiceInstance.on('connection', handleConnection);
+    peerServiceInstance.on('disconnection', handleDisconnection);
+    peerServiceInstance.on('connection-request', handleConnectionRequest);
+    peerServiceInstance.on('file-incoming', handleFileIncoming);
+    peerServiceInstance.on('file-outgoing', handleFileOutgoing);
+    peerServiceInstance.on('file-progress', handleFileProgress);
+    peerServiceInstance.on('file-received', handleFileReceived);
+    peerServiceInstance.on('file-sent', handleFileSent);
+
+    // Clean up event listeners on unmount
     return () => {
-      peerService.off('connection', handleConnection);
-      peerService.off('disconnection', handleDisconnection);
-      peerService.off('connectionRequest', handleConnectionRequest);
-      peerService.off('fileTransferStart', handleFileTransferStart);
-      peerService.off('fileTransferProgress', handleFileTransferProgress);
-      peerService.off('fileTransferComplete', handleFileTransferComplete);
-      peerService.off('fileTransferError', handleFileTransferError);
+      if (peerServiceInstance) {
+        peerServiceInstance.off('ready', handleReady);
+        peerServiceInstance.off('connection', handleConnection);
+        peerServiceInstance.off('disconnection', handleDisconnection);
+        peerServiceInstance.off('connection-request', handleConnectionRequest);
+        peerServiceInstance.off('file-incoming', handleFileIncoming);
+        peerServiceInstance.off('file-outgoing', handleFileOutgoing);
+        peerServiceInstance.off('file-progress', handleFileProgress);
+        peerServiceInstance.off('file-received', handleFileReceived);
+        peerServiceInstance.off('file-sent', handleFileSent);
+      }
     };
   }, []);
 
   const connectToPeer = useCallback(async (targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
     setConnectionStatus('connecting');
-    const success = await peerService.connectToPeer(targetPeerId);
+    const success = await peerServiceRef.current.connectToPeer(targetPeerId);
     if (!success) {
       setConnectionStatus('failed');
     }
   }, []);
 
   const acceptConnection = useCallback((targetPeerId: string) => {
-    peerService.acceptConnection(targetPeerId);
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.acceptConnection(targetPeerId);
     setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
   }, []);
 
   const rejectConnection = useCallback((targetPeerId: string) => {
-    peerService.rejectConnection(targetPeerId);
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.rejectConnection(targetPeerId);
     setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
   }, []);
 
   const disconnectPeer = useCallback((targetPeerId: string) => {
-    peerService.disconnectPeer(targetPeerId);
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.disconnectPeer(targetPeerId);
   }, []);
 
   const sendFile = useCallback(async (file: File, targetPeerId: string) => {
-    await peerService.sendFile(file, targetPeerId);
+    if (!peerServiceRef.current) return;
+
+    await peerServiceRef.current.sendFile(file, targetPeerId);
   }, []);
 
   const retryConnection = useCallback((targetPeerId: string) => {
+    setConnectionStatus('idle');
     connectToPeer(targetPeerId);
   }, [connectToPeer]);
 

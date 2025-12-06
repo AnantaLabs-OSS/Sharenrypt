@@ -1,705 +1,698 @@
+import Peer, { DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import toast from 'react-hot-toast';
 import { FileTransfer } from '../types';
+import { Encryption } from '../utils/encryption';
+import { playSound } from '../utils/sounds';
 
-// Configuration
-const CHUNK_SIZE = 16384; // 16KB chunks
-const CONNECTION_TIMEOUT = 15000; // 15 seconds
-const RECONNECT_ATTEMPTS = 3;
+// Configuration from environment
+const CHUNK_SIZE = Number(import.meta.env.VITE_CHUNK_SIZE) || 16384; // 16KB chunks
+// const MAX_FILE_SIZE = Number(import.meta.env.VITE_MAX_FILE_SIZE) || 1073741824; // 1GB (Unused but good for ref)
 
-// Get the WebSocket URL based on the current environment
-const getWebSocketUrl = () => "wss://sharenrypt-p2p-file-sharing.onrender.com/ws";
+// WebRTC ICE configuration
+const ICE_SERVERS = [
+  { urls: import.meta.env.VITE_STUN_SERVER_1 },
+  { urls: import.meta.env.VITE_STUN_SERVER_2 },
+  { urls: import.meta.env.VITE_STUN_SERVER_3 },
+  {
+    urls: import.meta.env.VITE_TURN_SERVER,
+    username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
+    credential: import.meta.env.VITE_TURN_CREDENTIAL || 'openrelayproject',
+  },
+];
 
-
-const RELAY_SERVER_URL = getWebSocketUrl();
-
-// Connection types
-type ConnectionMode = 'direct' | 'relay' | 'disconnected';
+// Connection status types
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'failed';
 
-// Event types
-type MessageType = 
-  | 'connection-request' 
-  | 'connection-accept'
-  | 'connection-reject'
-  | 'file-start'
-  | 'file-chunk'
-  | 'file-complete'
-  | 'ping'
-  | 'pong'
-  | 'disconnect';
-
+// Message types for data channel
 interface Message {
-  type: MessageType;
-  senderId: string;
-  targetId?: string;
-  payload?: any;
+  type: string;
+  payload: any;
+}
+
+// Device info for handshake
+interface DeviceInfo {
+  peerId: string;
+  deviceName: string;
+  browser: string;
   timestamp: number;
 }
 
-interface PeerConnection {
-  id: string;
-  connected: boolean;
-  mode: ConnectionMode;
-  lastActivity: number;
-}
-
-interface FileTransferState {
-  chunks: ArrayBuffer[];
-  metadata: {
-    id: string;
-    name: string;
-    size: number;
-    type: string;
-  };
-  totalChunks: number;
-  receivedChunks: number;
-}
-
 export class PeerService {
-  private peerId: string;
-  private connections: Map<string, PeerConnection>;
-  private websocket: WebSocket | null = null;
-  private reconnectAttempts = 0;
-  private pingInterval: number | null = null;
-  private activeTransfers: Map<string, FileTransferState>;
-  private messageQueue: Map<string, Message[]>;
-  private listeners: Map<string, Set<(data: any) => void>>;
+  private peer: Peer | null = null;
+  private peerId: string = '';
+  private connections: Map<string, DataConnection> = new Map();
+  private pendingConnections: Map<string, DataConnection> = new Map();
   private connectionStatus: ConnectionStatus = 'idle';
-  private pendingConnections: Set<string>;
-  private encryptionKey: CryptoKey | null = null;
+  private eventHandlers: Map<string, Set<Function>> = new Map();
+  private incomingTransfers: Map<string, any> = new Map();
+  private peerDeviceInfo: Map<string, DeviceInfo> = new Map();
 
   constructor() {
-    this.peerId = nanoid();
-    this.connections = new Map();
-    this.activeTransfers = new Map();
-    this.messageQueue = new Map();
-    this.listeners = new Map();
-    this.pendingConnections = new Set();
-    
-    // Initialize encryption key and connect to relay server
-    this.initialize();
+    this.initializePeer();
   }
 
-  private async initialize() {
-    await this.initializeEncryption();
-    this.connectToRelayServer();
+  private initializePeer(): void {
+    try {
+      // Generate unique peer ID
+      this.peerId = nanoid();
+
+      // Initialize PeerJS with free cloud server
+      this.peer = new Peer(this.peerId, {
+        host: import.meta.env.VITE_PEER_HOST || '0.peerjs.com',
+        port: Number(import.meta.env.VITE_PEER_PORT) || 443,
+        path: import.meta.env.VITE_PEER_PATH || '/',
+        secure: import.meta.env.VITE_PEER_SECURE !== 'false',
+        config: {
+          iceServers: ICE_SERVERS,
+          iceCandidatePoolSize: 10,
+        },
+        debug: 2, // Set to 0 in production
+      });
+
+      this.setupPeerEvents();
+    } catch (error: any) {
+      console.error('Failed to initialize PeerJS:', error);
+      toast.error('Failed to connect to P2P network');
+    }
   }
 
-  // Public methods
+  private setupPeerEvents(): void {
+    if (!this.peer) return;
+
+    // Handle successful connection to PeerJS server
+    this.peer.on('open', (id) => {
+      console.log('Connected to PeerJS network with ID:', id);
+      this.peerId = id;
+      toast.success('Ready for P2P connections!');
+      this.emit('ready', { peerId: id });
+    });
+
+    // Handle incoming connections
+    this.peer.on('connection', (conn) => {
+      console.log('Incoming connection from:', conn.peer);
+
+      // Store the connection object for later acceptance
+      this.pendingConnections.set(conn.peer, conn);
+      this.emit('connection-request', { peerId: conn.peer });
+
+      // Setup basic handlers but don't fully activate yet
+      conn.on('open', () => {
+        console.log('Pending connection opened from:', conn.peer);
+      });
+
+      conn.on('close', () => {
+        console.log('Pending connection closed:', conn.peer);
+        this.pendingConnections.delete(conn.peer);
+      });
+    });
+
+    // Handle errors
+    this.peer.on('error', (error: any) => {
+      console.error('PeerJS error:', error);
+
+      if (error.type === 'peer-unavailable') {
+        toast.error('Peer not found or offline');
+        this.connectionStatus = 'failed';
+      } else if (error.type === 'network') {
+        toast.error('Network connection failed');
+      } else {
+        toast.error('Connection error: ' + error.message);
+      }
+
+      this.emit('error', { error });
+    });
+
+    // Handle disconnection
+    this.peer.on('disconnected', () => {
+      console.log('Disconnected from PeerJS network');
+      toast.error('Disconnected from P2P network');
+      this.emit('disconnected', {});
+    });
+  }
+
   public getPeerId(): string {
     return this.peerId;
   }
 
-  public getConnections(): PeerConnection[] {
-    return Array.from(this.connections.values());
+  public getConnections(): Array<{ id: string; connected: boolean }> {
+    const connections: Array<{ id: string; connected: boolean }> = [];
+
+    this.connections.forEach((conn, peerId) => {
+      connections.push({
+        id: peerId,
+        connected: conn.open,
+      });
+    });
+
+    return connections;
   }
 
   public getPendingConnections(): string[] {
-    return Array.from(this.pendingConnections);
+    return Array.from(this.pendingConnections.keys());
   }
 
   public getConnectionStatus(): ConnectionStatus {
     return this.connectionStatus;
   }
 
+  // Helper to get device info
+  private getDeviceInfo(): DeviceInfo {
+    const userAgent = navigator.userAgent;
+    let browser = 'Unknown';
+
+    if (userAgent.includes('Firefox')) browser = 'Firefox';
+    else if (userAgent.includes('Chrome')) browser = 'Chrome';
+    else if (userAgent.includes('Safari')) browser = 'Safari';
+    else if (userAgent.includes('Edge')) browser = 'Edge';
+
+    const deviceName = `${browser} on ${navigator.platform}`;
+
+    return {
+      peerId: this.peerId,
+      deviceName,
+      browser,
+      timestamp: Date.now(),
+    };
+  }
+
+  // Handshake methods
+  private sendHandshake(conn: DataConnection, peerId: string): void {
+    console.log('Sending handshake to:', peerId);
+    const deviceInfo = this.getDeviceInfo();
+
+    conn.send({
+      type: 'handshake',
+      payload: deviceInfo,
+    });
+  }
+
+  private handleHandshake(deviceInfo: DeviceInfo, peerId: string): void {
+    console.log('Received handshake from:', peerId, deviceInfo);
+
+    // Store peer's device info
+    this.peerDeviceInfo.set(peerId, deviceInfo);
+
+    // Send handshake response
+    const conn = this.connections.get(peerId);
+    if (conn) {
+      const myDeviceInfo = this.getDeviceInfo();
+      conn.send({
+        type: 'handshake-response',
+        payload: myDeviceInfo,
+      });
+
+      // Emit handshake complete
+      this.emit('handshake-complete', { peerId, deviceInfo });
+      console.log('Handshake complete with:', peerId);
+    }
+  }
+
+  private handleHandshakeResponse(deviceInfo: DeviceInfo, peerId: string): void {
+    console.log('Received handshake response from:', peerId, deviceInfo);
+
+    // Store peer's device info
+    this.peerDeviceInfo.set(peerId, deviceInfo);
+
+    // Emit handshake complete
+    this.emit('handshake-complete', { peerId, deviceInfo });
+    console.log('Handshake complete with:', peerId);
+  }
+
   public async connectToPeer(targetPeerId: string): Promise<boolean> {
+    if (!this.peer) {
+      toast.error('P2P network not initialized');
+      return false;
+    }
+
     if (targetPeerId === this.peerId) {
-      toast.error("Cannot connect to yourself");
+      toast.error('Cannot connect to yourself!');
       return false;
     }
 
     if (this.connections.has(targetPeerId)) {
-      toast.info("Already connected to this peer");
-      return true;
-    }
-
-    this.connectionStatus = 'connecting';
-    toast.loading('Connecting to peer...', { id: 'connect' });
-
-    // Send connection request through relay server
-    const success = await this.sendMessage({
-      type: 'connection-request',
-      senderId: this.peerId,
-      targetId: targetPeerId,
-      timestamp: Date.now()
-    });
-
-    if (!success) {
-      this.connectionStatus = 'failed';
-      toast.error('Failed to send connection request', { id: 'connect' });
+      toast.error('Already connected to this peer');
       return false;
     }
 
-    // Set connection timeout
-    const timeout = setTimeout(() => {
-      if (this.connectionStatus === 'connecting') {
-        this.connectionStatus = 'failed';
-        toast.error('Connection timed out', { id: 'connect' });
-      }
-    }, CONNECTION_TIMEOUT);
+    try {
+      this.connectionStatus = 'connecting';
+      toast.loading('Establishing P2P connection...', { id: 'connecting' });
 
-    // Wait for connection to be established
-    return new Promise((resolve) => {
-      const checkConnection = setInterval(() => {
-        if (this.connectionStatus === 'connected') {
-          clearTimeout(timeout);
-          clearInterval(checkConnection);
-          resolve(true);
-        } else if (this.connectionStatus === 'failed') {
-          clearTimeout(timeout);
-          clearInterval(checkConnection);
+      // Create WebRTC data connection
+      const conn = this.peer.connect(targetPeerId, {
+        reliable: true, // Ordered, reliable delivery
+        serialization: 'binary', // Binary data for files
+      });
+
+      return new Promise((resolve) => {
+        let timeout = setTimeout(() => {
+          toast.dismiss('connecting');
+          toast.error('Connection timeout');
+          this.connectionStatus = 'failed';
           resolve(false);
-        }
-      }, 500);
-    });
+        }, 15000);
+
+        conn.on('open', () => {
+          clearTimeout(timeout);
+          toast.dismiss('connecting');
+
+          console.log('Connection opened, initiating handshake...');
+
+          this.connections.set(targetPeerId, conn);
+          this.setupConnectionHandlers(conn, targetPeerId);
+
+          // Send handshake to verify bidirectional communication
+          this.sendHandshake(conn, targetPeerId);
+
+          // Wait for handshake response (timeout after 5 seconds)
+          const handshakeTimeout = setTimeout(() => {
+            toast.error('Handshake timeout - connection may be unstable');
+            // We don't fail hard, but warn user
+          }, 5000);
+
+          // Listen for handshake response to confirm full connection
+          const handshakeHandler = (data: any) => {
+            if (data.peerId === targetPeerId) {
+              clearTimeout(handshakeTimeout);
+              const deviceInfo = this.peerDeviceInfo.get(targetPeerId);
+              const peerName = deviceInfo ? deviceInfo.deviceName : targetPeerId.substring(0, 8);
+
+              toast.success(`Connected to ${peerName}`);
+              playSound('success');
+
+              this.connectionStatus = 'connected';
+              this.emit('connection', {
+                peerId: targetPeerId,
+                deviceInfo
+              });
+              this.off('handshake-complete', handshakeHandler);
+              resolve(true);
+            }
+          };
+
+          this.on('handshake-complete', handshakeHandler);
+        });
+
+        conn.on('error', (error) => {
+          clearTimeout(timeout);
+          toast.dismiss('connecting');
+          console.error('Connection error:', error);
+          toast.error('Failed to connect');
+          this.connectionStatus = 'failed';
+          resolve(false);
+        });
+
+        conn.on('close', () => {
+          if (this.connectionStatus === 'connecting') {
+            clearTimeout(timeout);
+            toast.dismiss('connecting');
+            toast.error('Connection closed unexpectedly');
+            this.connectionStatus = 'failed';
+            resolve(false);
+          }
+        });
+      });
+    } catch (error) {
+      toast.dismiss('connecting');
+      console.error('Connect error:', error);
+      toast.error('Failed to connect to peer');
+      this.connectionStatus = 'failed';
+      return false;
+    }
   }
 
   public acceptConnection(peerId: string): void {
-    if (!this.pendingConnections.has(peerId)) {
+    const conn = this.pendingConnections.get(peerId);
+
+    if (!conn) {
+      console.error('No pending connection found for:', peerId);
       return;
     }
 
+    console.log('Accepting connection from:', peerId);
+
+    // Remove from pending
     this.pendingConnections.delete(peerId);
-    
-    // Send acceptance message
-    this.sendMessage({
-      type: 'connection-accept',
-      senderId: this.peerId,
-      targetId: peerId,
-      timestamp: Date.now()
-    });
 
-    // Add to connections
-    this.connections.set(peerId, {
-      id: peerId,
-      connected: true,
-      mode: 'relay',
-      lastActivity: Date.now()
-    });
+    // Move to active connections
+    this.connections.set(peerId, conn);
 
-    toast.success('Connection accepted');
-    this.emit('connection', { peerId });
+    // Set up data handlers
+    this.setupConnectionHandlers(conn, peerId);
+
+    // Send handshake to initiate device info exchange
+    this.sendHandshake(conn, peerId);
+
+    toast.loading(`Accepting connection...`, { id: 'accepting' });
+
+    // Wait for handshake to complete
+    const handshakeHandler = (data: any) => {
+      if (data.peerId === peerId) {
+        toast.dismiss('accepting');
+        const deviceInfo = this.peerDeviceInfo.get(peerId);
+        const peerName = deviceInfo ? deviceInfo.deviceName : peerId.substring(0, 8);
+
+        toast.success(`Connected to ${peerName}`);
+        playSound('success');
+
+        this.emit('connection', {
+          peerId,
+          deviceInfo
+        });
+        this.off('handshake-complete', handshakeHandler);
+      }
+    };
+
+    this.on('handshake-complete', handshakeHandler);
+
+    // Fallback if handshake fails (assume connected but warn)
+    setTimeout(() => {
+      if (!this.peerDeviceInfo.has(peerId)) {
+        toast.dismiss('accepting');
+        // If we haven't received handshake but connection is open, still mark connected
+        if (conn.open) {
+          toast.success(`Connected to ${peerId.substring(0, 8)}`);
+          this.emit('connection', { peerId });
+        }
+      }
+    }, 5000);
   }
 
   public rejectConnection(peerId: string): void {
-    if (!this.pendingConnections.has(peerId)) {
-      return;
+    const conn = this.pendingConnections.get(peerId);
+    if (conn) {
+      conn.close();
+      this.pendingConnections.delete(peerId);
+      this.emit('connection-reject', { peerId });
     }
-
-    this.pendingConnections.delete(peerId);
-    
-    // Send rejection message
-    this.sendMessage({
-      type: 'connection-reject',
-      senderId: this.peerId,
-      targetId: peerId,
-      timestamp: Date.now()
-    });
-
-    toast.success('Connection rejected');
   }
 
   public disconnectPeer(peerId: string): void {
-    if (!this.connections.has(peerId)) {
+    const conn = this.connections.get(peerId);
+    if (conn) {
+      conn.close();
+      this.connections.delete(peerId);
+      this.emit('peer-disconnected', { peerId });
+      toast.success('Disconnected');
+    }
+  }
+
+  private setupConnectionHandlers(conn: DataConnection, peerId: string): void {
+    conn.on('data', (data) => {
+      // Need to wrap in try-catch as data handling might fail
+      try {
+        this.handleIncomingData(data, peerId);
+      } catch (e) {
+        console.error("Error handling incoming data:", e);
+      }
+    });
+
+    conn.on('close', () => {
+      console.log('Connection closed:', peerId);
+      this.connections.delete(peerId);
+      this.peerDeviceInfo.delete(peerId);
+      this.emit('peer-disconnected', { peerId });
+      toast.error(`Peer ${peerId.substring(0, 8)} disconnected`);
+    });
+
+    conn.on('error', (error) => {
+      console.error('Connection error:', error);
+      this.emit('error', { error, peerId });
+    });
+  }
+
+  // File Transfer Methods - SECURE implementation
+  public async sendFile(targetPeerId: string, file: File): Promise<void> {
+    const conn = this.connections.get(targetPeerId);
+
+    if (!conn || !conn.open) {
+      toast.error('Not connected to peer');
       return;
     }
 
-    // Send disconnect message
-    this.sendMessage({
-      type: 'disconnect',
-      senderId: this.peerId,
-      targetId: peerId,
-      timestamp: Date.now()
-    });
-
-    this.connections.delete(peerId);
-    toast.success('Disconnected from peer');
-    this.emit('disconnection', { peerId });
-  }
-
-  public async sendFile(file: File, targetPeerId: string): Promise<boolean> {
-    if (!this.connections.has(targetPeerId)) {
-      toast.error('Not connected to peer');
-      return false;
-    }
-
-    const transferId = nanoid();
     try {
-      toast.loading(`Preparing ${file.name} for transfer...`, { id: transferId });
+      // Encrypt file specifically using correct method
+      // Returns { encryptedData, key, iv, transferId }
+      toast.loading('Encrypting file...', { id: 'encrypting' });
 
-      // Create file metadata
-      const fileMetadata = {
+      const { encryptedData, key, iv, transferId } = await Encryption.encryptFile(file);
+
+      toast.dismiss('encrypting');
+
+      // Create transfer object for local display
+      const transfer: FileTransfer = {
         id: transferId,
         name: file.name,
         size: file.size,
-        type: file.type
-      };
-
-      // Notify about transfer start
-      this.emit('fileTransferStart', {
-        ...fileMetadata,
+        type: file.type,
         progress: 0,
-        status: 'transferring'
-      });
+        status: 'pending',
+      };
 
-      // Send file start message
-      const startSuccess = await this.sendMessage({
+      this.emit('transfer-progress', { transfer });
+
+      // Notify peer about incoming file AND encryption keys
+      // Keys are sent over WebRTC data channel which uses DTLS (secure)
+      conn.send({
         type: 'file-start',
-        senderId: this.peerId,
-        targetId: targetPeerId,
-        payload: fileMetadata,
-        timestamp: Date.now()
-      });
-
-      if (!startSuccess) {
-        throw new Error('Failed to initiate file transfer');
-      }
-
-      // Read and send file in chunks
-      const reader = new FileReader();
-      const chunkSize = CHUNK_SIZE;
-      const totalChunks = Math.ceil(file.size / chunkSize);
-      let currentChunk = 0;
-
-      const readNextChunk = () => {
-        const start = currentChunk * chunkSize;
-        const end = Math.min(start + chunkSize, file.size);
-        const blob = file.slice(start, end);
-        reader.readAsArrayBuffer(blob);
-      };
-
-      reader.onload = async (e) => {
-        if (!e.target?.result) return;
-
-        const chunk = e.target.result;
-        const chunkSuccess = await this.sendMessage({
-          type: 'file-chunk',
-          senderId: this.peerId,
-          targetId: targetPeerId,
-          payload: {
-            transferId,
-            chunkIndex: currentChunk,
-            totalChunks,
-            chunk: Array.from(new Uint8Array(chunk as ArrayBuffer))
-          },
-          timestamp: Date.now()
-        });
-
-        if (!chunkSuccess) {
-          throw new Error(`Failed to send chunk ${currentChunk}`);
-        }
-
-        const progress = ((currentChunk + 1) / totalChunks) * 100;
-        this.emit('fileTransferProgress', {
+        payload: {
           id: transferId,
-          progress,
-          status: 'transferring'
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          key, // Exchange the key
+          iv   // Exchange the IV
+        },
+      });
+
+      toast.loading(`Sending ${file.name}...`, { id: transferId });
+
+      // Send chunks
+      let offset = 0;
+
+      while (offset < encryptedData.byteLength) {
+        // Wait if buffer is too full (backpressure)
+        // Note: bufferedAmount property shows bytes queued in the data channel
+        const currentConn = conn as any; // Type assertion needed for bufferedAmount
+        while (currentConn.bufferedAmount && currentConn.bufferedAmount > CHUNK_SIZE * 4) {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+
+        const chunk = encryptedData.slice(offset, offset + CHUNK_SIZE);
+
+        conn.send({
+          type: 'file-chunk',
+          payload: {
+            id: transferId,
+            chunk,
+            offset,
+            totalSize: encryptedData.byteLength,
+          },
         });
 
-        currentChunk++;
-        if (currentChunk < totalChunks) {
-          setTimeout(readNextChunk, 10); // Add small delay between chunks
-        } else {
-          // Send file complete message
-          await this.sendMessage({
-            type: 'file-complete',
-            senderId: this.peerId,
-            targetId: targetPeerId,
-            payload: { transferId },
-            timestamp: Date.now()
-          });
+        offset += chunk.byteLength;
+        const progress = Math.round((offset / encryptedData.byteLength) * 100);
 
-          this.emit('fileTransferComplete', {
-            id: transferId,
-            status: 'completed'
-          });
-          
-          toast.success(`${file.name} sent successfully!`, { id: transferId });
-        }
-      };
+        this.emit('transfer-progress', {
+          transfer: { ...transfer, progress, status: 'encrypting' }, // status used for transfer display
+        });
+      }
 
-      reader.onerror = (error) => {
-        throw error;
-      };
-
-      readNextChunk();
-      return true;
-    } catch (error) {
-      console.error('File transfer failed:', error);
-      toast.error('Failed to send file', { id: transferId });
-      
-      this.emit('fileTransferError', {
-        id: transferId,
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+      // Notify completion
+      conn.send({
+        type: 'file-complete',
+        payload: { id: transferId },
       });
-      
-      return false;
-    }
-  }
 
-  public on(event: string, callback: (data: any) => void): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-    }
-    this.listeners.get(event)?.add(callback);
-  }
+      toast.dismiss(transferId);
+      toast.success('File sent successfully!');
+      playSound('success');
 
-  public off(event: string, callback: (data: any) => void): void {
-    this.listeners.get(event)?.delete(callback);
-  }
+      transfer.status = 'completed';
+      transfer.progress = 100;
+      this.emit('transfer-progress', { transfer });
 
-  // Private methods
-  private emit(event: string, data: any): void {
-    this.listeners.get(event)?.forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
-      }
-    });
-  }
-
-  private async initializeEncryption(): Promise<void> {
-    try {
-      const key = await window.crypto.subtle.generateKey(
-        {
-          name: 'AES-GCM',
-          length: 256,
-        },
-        true,
-        ['encrypt', 'decrypt']
-      );
-      this.encryptionKey = key;
     } catch (error) {
-      console.error('Failed to initialize encryption:', error);
+      console.error('File send error:', error);
+      toast.dismiss('encrypting');
+      toast.error('Failed to send file');
+      this.emit('error', { error });
     }
   }
 
-  private connectToRelayServer(): void {
-    try {
-      if (this.websocket) {
-        this.websocket.close();
-      }
-
-      console.log('Connecting to relay server:', RELAY_SERVER_URL);
-      this.websocket = new WebSocket(RELAY_SERVER_URL);
-      
-      this.websocket.onopen = () => {
-        console.log('Connected to relay server');
-        this.reconnectAttempts = 0;
-        
-        // Register with the relay server
-        this.websocket?.send(JSON.stringify({
-          type: 'register',
-          peerId: this.peerId
-        }));
-        
-        // Start ping interval to keep connection alive
-        this.startPingInterval();
-        
-        // Process any queued messages
-        this.processMessageQueue();
-      };
-      
-      this.websocket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          this.handleIncomingMessage(message);
-        } catch (error) {
-          console.error('Failed to parse message:', error);
-        }
-      };
-      
-      this.websocket.onclose = () => {
-        console.log('Disconnected from relay server');
-        this.stopPingInterval();
-        
-        // Attempt to reconnect
-        if (this.reconnectAttempts < RECONNECT_ATTEMPTS) {
-          this.reconnectAttempts++;
-          setTimeout(() => this.connectToRelayServer(), 1000 * this.reconnectAttempts);
-        }
-      };
-      
-      this.websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-    } catch (error) {
-      console.error('Failed to connect to relay server:', error);
-    }
-  }
-
-  private startPingInterval(): void {
-    this.pingInterval = window.setInterval(() => {
-      if (this.websocket?.readyState === WebSocket.OPEN) {
-        this.websocket.send(JSON.stringify({
-          type: 'ping',
-          peerId: this.peerId,
-          timestamp: Date.now()
-        }));
-      }
-    }, 30000) as unknown as number;
-  }
-
-  private stopPingInterval(): void {
-    if (this.pingInterval !== null) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
-  }
-
-  private async sendMessage(message: Message): Promise<boolean> {
-    // If not connected to relay server, queue the message
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-      this.queueMessage(message);
-      return false;
-    }
-
-    try {
-      this.websocket.send(JSON.stringify(message));
-      return true;
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      this.queueMessage(message);
-      return false;
-    }
-  }
-
-  private queueMessage(message: Message): void {
-    const targetId = message.targetId;
-    if (!targetId) return;
-    
-    if (!this.messageQueue.has(targetId)) {
-      this.messageQueue.set(targetId, []);
-    }
-    
-    this.messageQueue.get(targetId)?.push(message);
-  }
-
-  private processMessageQueue(): void {
-    if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+  private handleIncomingData(data: any, peerId: string): void {
+    if (!data || typeof data !== 'object' || !data.type) {
       return;
     }
-    
-    this.messageQueue.forEach((messages, targetId) => {
-      messages.forEach(message => {
-        try {
-          this.websocket?.send(JSON.stringify(message));
-        } catch (error) {
-          console.error('Failed to send queued message:', error);
-        }
-      });
-      
-      this.messageQueue.delete(targetId);
-    });
-  }
 
-  private handleIncomingMessage(message: Message): void {
-    if (!message.type) return;
+    const message: Message = data;
 
-    console.log('Received message:', message.type, message); // Add logging
-    
-    // Update last activity for the connection
-    if (message.senderId && this.connections.has(message.senderId)) {
-      const connection = this.connections.get(message.senderId)!;
-      connection.lastActivity = Date.now();
-      this.connections.set(message.senderId, connection);
-    }
-    
     switch (message.type) {
-      case 'connection-request':
-        if (message.senderId) {
-          console.log('Received connection request from:', message.senderId);
-          // Add to pending connections if not already connected
-          if (!this.connections.has(message.senderId)) {
-            this.pendingConnections.add(message.senderId);
-            // Notify user
-            this.emit('connectionRequest', { peerId: message.senderId });
-            toast.success('New connection request received!');
-          }
-        }
+      case 'handshake':
+        this.handleHandshake(message.payload, peerId);
         break;
-      case 'connection-accept':
-        this.handleConnectionAccept(message);
-        break;
-      case 'connection-reject':
-        this.handleConnectionReject(message);
+      case 'handshake-response':
+        this.handleHandshakeResponse(message.payload, peerId);
         break;
       case 'file-start':
-        this.handleFileStart(message);
+        this.handleFileStart(message.payload);
         break;
       case 'file-chunk':
-        this.handleFileChunk(message);
+        this.handleFileChunk(message.payload);
         break;
       case 'file-complete':
-        this.handleFileComplete(message);
+        this.handleFileComplete(message.payload);
         break;
-      case 'disconnect':
-        this.handleDisconnect(message);
+      case 'text-message':
+        this.emit('message', { peerId, text: message.payload });
         break;
-      case 'ping':
-        // Respond with pong
-        if (message.senderId) {
-          this.sendMessage({
-            type: 'pong',
-            senderId: this.peerId,
-            targetId: message.senderId,
-            timestamp: Date.now()
-          });
-        }
-        break;
-      case 'pong':
-        // Just update last activity, already done above
-        break;
+      default:
+        console.warn('Unknown message type:', message.type);
     }
   }
 
-  private handleConnectionAccept(message: Message): void {
-    if (!message.senderId) return;
-    
-    console.log('Connection accepted by:', message.senderId);
-    
-    // Add to connections
-    this.connections.set(message.senderId, {
-      id: message.senderId,
-      connected: true,
-      mode: 'relay',
-      lastActivity: Date.now()
-    });
-    
-    this.connectionStatus = 'connected';
-    toast.success('Connected successfully!', { id: 'connect' });
-    
-    // Notify listeners
-    this.emit('connection', { peerId: message.senderId });
-  }
-
-  private handleConnectionReject(message: Message): void {
-    if (!message.senderId) return;
-    
-    console.log('Connection rejected by:', message.senderId);
-    this.connectionStatus = 'failed';
-    toast.error('Connection rejected by peer', { id: 'connect' });
-  }
-
-  private handleFileStart(message: Message): void {
-    if (!message.senderId || !message.payload) return;
-    
-    const { id, name, size, type } = message.payload;
-    
-    // Create new file transfer
-    this.activeTransfers.set(id, {
-      chunks: [],
-      metadata: { id, name, size, type },
-      totalChunks: Math.ceil(size / CHUNK_SIZE),
-      receivedChunks: 0
-    });
-    
-    // Notify listeners
-    this.emit('fileTransferStart', {
-      id,
-      name,
-      size,
-      type,
+  private handleFileStart(metadata: any): void {
+    // metadata: { id, name, size, type, key, iv }
+    const transfer: FileTransfer = {
+      id: metadata.id,
+      name: metadata.name,
+      size: metadata.size,
+      type: metadata.type,
       progress: 0,
       status: 'pending',
-      senderId: message.senderId
+    };
+
+    // Store for tracking chunks AND keys
+    this.incomingTransfers.set(metadata.id, {
+      ...metadata,
+      chunks: [],
+      receivedSize: 0,
+      // Store key and IV for decryption later
+      key: metadata.key,
+      iv: metadata.iv,
     });
-    
-    toast.loading(`Receiving ${name}...`, { id });
+
+    toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+    this.emit('incoming-transfer', { transfer });
   }
 
-  private async handleFileChunk(message: Message): void {
-    if (!message.senderId || !message.payload) return;
-    
-    const { transferId, chunkIndex, totalChunks, chunk } = message.payload;
-    
-    // Get file transfer
-    const transfer = this.activeTransfers.get(transferId);
+  private handleFileChunk(data: any): void {
+    // data: { id, chunk, offset, totalSize }
+    const transfer = this.incomingTransfers.get(data.id);
     if (!transfer) return;
-    
-    // Convert chunk back to ArrayBuffer
-    const arrayBuffer = new Uint8Array(chunk).buffer;
-    
-    // Store chunk
-    transfer.chunks[chunkIndex] = arrayBuffer;
-    transfer.receivedChunks++;
-    
-    // Update progress
-    const progress = (transfer.receivedChunks / totalChunks) * 100;
-    
-    // Notify listeners
-    this.emit('fileTransferProgress', {
-      id: transferId,
-      progress,
-      status: 'transferring'
+
+    transfer.chunks.push({
+      data: data.chunk,
+      offset: data.offset,
+    });
+
+    // Sort chunks sometimes if needed, or just append
+    // For reliable channels, order is guaranteed usually
+
+    const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
+
+    this.emit('transfer-progress', {
+      transfer: {
+        id: transfer.id,
+        name: transfer.name,
+        size: transfer.size,
+        type: transfer.type,
+        progress,
+        status: 'downloading',
+      },
     });
   }
 
-  private async handleFileComplete(message: Message): void {
-    if (!message.senderId || !message.payload) return;
-    
-    const { transferId } = message.payload;
-    
-    // Get file transfer
-    const transfer = this.activeTransfers.get(transferId);
+  private async handleFileComplete(data: any): Promise<void> {
+    const transfer = this.incomingTransfers.get(data.id);
     if (!transfer) return;
-    
+
     try {
-      // Combine chunks
-      const completeFile = new Blob(transfer.chunks, { type: transfer.metadata.type });
-      const url = URL.createObjectURL(completeFile);
-      
-      // Notify listeners
-      this.emit('fileTransferComplete', {
-        id: transferId,
-        status: 'completed',
-        url
-      });
-      
-      toast.success(`${transfer.metadata.name} received successfully!`, { id: transferId });
-      
-      // Download file
+      toast.loading(`Decrypting ${transfer.name}...`, { id: data.id });
+
+      // Reassemble
+      transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+
+      const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
+      const combined = new Uint8Array(totalSize);
+      let offset = 0;
+
+      for (const chunk of transfer.chunks) {
+        combined.set(new Uint8Array(chunk.data), offset);
+        offset += chunk.data.byteLength;
+      }
+
+      // Decrypt using received key/IV
+      if (!transfer.key || !transfer.iv) {
+        throw new Error("Missing encryption keys for file");
+      }
+
+      const decryptedBuffer = await Encryption.decryptFile(combined.buffer, transfer.key, transfer.iv);
+
+      // Create download
+      const blob = new Blob([decryptedBuffer], { type: transfer.type });
+      const url = URL.createObjectURL(blob);
+
       const a = document.createElement('a');
       a.href = url;
-      a.download = transfer.metadata.name;
+      a.download = transfer.name;
       a.click();
+
       URL.revokeObjectURL(url);
-      
+
       // Clean up
-      this.activeTransfers.delete(transferId);
+      this.incomingTransfers.delete(data.id);
+
+      toast.dismiss(data.transferId); // Use data.id if transferId not in payload, but usually it is id
+      toast.dismiss(data.id);
+
+      toast.success('File received!');
+      playSound('success');
+
+      const fileTransfer: FileTransfer = {
+        id: data.id,
+        name: transfer.name,
+        size: transfer.size,
+        type: transfer.type,
+        progress: 100,
+        status: 'completed',
+      };
+
+      this.emit('transfer-completed', { transfer: fileTransfer });
+
     } catch (error) {
-      console.error('Failed to process file:', error);
-      
-      this.emit('fileTransferError', {
-        id: transferId,
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      toast.error(`Failed to process ${transfer.metadata.name}`, { id: transferId });
-      
-      // Clean up
-      this.activeTransfers.delete(transferId);
+      console.error('Decryption error:', error);
+      toast.dismiss(data.id);
+      toast.error('Failed to decrypt file');
     }
   }
 
-  private handleDisconnect(message: Message): void {
-    if (!message.senderId) return;
-    
-    console.log('Peer disconnected:', message.senderId);
-    
-    // Remove from connections
-    this.connections.delete(message.senderId);
-    
-    // Notify listeners
-    this.emit('disconnection', { peerId: message.senderId });
-    
-    toast.info('Peer disconnected');
+  public sendTextMessage(targetPeerId: string, text: string): void {
+    const conn = this.connections.get(targetPeerId);
+    if (conn) {
+      conn.send({
+        type: 'text-message',
+        payload: text,
+      });
+    }
+  }
+
+  // Event handling
+  public on(event: string, handler: Function): void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set());
+    }
+    this.eventHandlers.get(event)?.add(handler);
+  }
+
+  public off(event: string, handler: Function): void {
+    this.eventHandlers.get(event)?.delete(handler);
+  }
+
+  private emit(event: string, data: any): void {
+    this.eventHandlers.get(event)?.forEach((handler) => handler(data));
   }
 }
 
-// Create singleton instance
 export const peerService = new PeerService();

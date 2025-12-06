@@ -7,20 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "start-relay": "node server/relay-server.js"
+    "preview": "vite preview"
   },
   "dependencies": {
+    "framer-motion": "^11.0.8",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.344.0",
+    "nanoid": "^5.0.6",
+    "peerjs": "^1.5.5",
+    "qr-scanner": "^1.4.2",
+    "qrcode.react": "^3.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "nanoid": "^5.0.6",
-    "qrcode.react": "^3.1.0",
     "react-hot-toast": "^2.4.1",
-    "html5-qrcode": "^2.3.8",
-    "framer-motion": "^11.0.8",
-    "ws": "^8.16.0",
-    "qr-scanner": "^1.4.2"
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
