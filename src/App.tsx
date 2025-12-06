@@ -9,23 +9,39 @@ import { QRScanner } from './components/QRScanner';
 import { ConnectionRequest } from './components/ConnectionRequest';
 import { ConnectionDialog } from './components/ConnectionDialog';
 
+import React, { useCallback, useState } from 'react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Toaster } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePeerConnection } from './hooks/usePeerConnection';
+import { FileList } from './components/FileList';
+import { QRScanner } from './components/QRScanner';
+import { ConnectionRequest } from './components/ConnectionRequest';
+import { ConnectionDialog } from './components/ConnectionDialog';
+import { Chat } from './components/Chat';
+
 function App() {
-  const { 
-    peerId, 
-    connections, 
-    files, 
+  const {
+    peerId,
+    connections,
+    files,
+    messages,
     pendingConnections,
     connectionStatus,
-    connectToPeer, 
-    sendFile, 
+    connectToPeer,
+    sendFile,
+    sendTextMessage,
     disconnectPeer,
     acceptConnection,
     rejectConnection,
     retryConnection
   } = usePeerConnection();
+
   const [showQR, setShowQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
 
   const handleConnect = useCallback(() => {
@@ -54,14 +70,37 @@ function App() {
     setShowScanner(false);
   }, [connectToPeer]);
 
+  const handleSendMessage = useCallback((text: string) => {
+    if (connections.length > 0) {
+      // Broadcast to all connected peers for now, or just the first one
+      connections.forEach(conn => sendTextMessage(text, conn.id));
+    }
+  }, [connections, sendTextMessage]);
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50"
+      className="min-h-screen bg-slate-950 text-slate-200 selection:bg-cyan-500/30 overflow-hidden relative"
     >
-      <Toaster position="top-right" />
-      
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#e2e8f0',
+            border: '1px solid rgba(255,255,255,0.1)',
+          },
+        }}
+      />
+
+      {/* Background Ambience */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full mix-blend-screen animate-pulse" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-cyan-600/10 blur-[120px] rounded-full mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-150 contrast-150 mix-blend-overlay"></div>
+      </div>
+
       <AnimatePresence>
         {pendingConnections.map((pendingPeerId) => (
           <ConnectionRequest
@@ -86,169 +125,217 @@ function App() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-4xl mx-auto p-3 sm:p-6">
-        <motion.div 
-          initial={{ y: -20, opacity: 0 }}
+      <div className="relative z-10 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col h-screen">
+        {/* Header Section */}
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 sm:p-6 mb-6"
+          className="glass-panel rounded-2xl p-6 mb-6 flex flex-col md:flex-row items-center justify-between gap-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <motion.div 
-              className="flex items-center space-x-3"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Share2 className="w-7 h-7 text-blue-500" />
-              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 text-transparent bg-clip-text">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+              <Share2 className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                 Sharencrypt
               </h1>
-            </motion.div>
-            <div className="flex flex-wrap items-center gap-3">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleConnect}
-                className="flex items-center justify-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg w-full sm:w-auto"
-              >
-                <Users className="w-5 h-5" />
-                <span>Connect</span>
-              </motion.button>
-              <motion.label
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className={`flex items-center justify-center space-x-2 px-4 py-2 ${
-                  connections.length > 0 
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 cursor-pointer shadow-md hover:shadow-lg' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                } text-white rounded-lg transition-all w-full sm:w-auto`}
-              >
-                <Upload className="w-5 h-5" />
-                <span>Send File</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  disabled={connections.length === 0}
-                />
-              </motion.label>
+              <p className="text-slate-400 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Secure P2P File Sharing
+              </p>
             </div>
           </div>
 
-          <motion.div 
-            className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6"
-            whileHover={{ scale: 1.01 }}
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleConnect}
+              className="glass-button-primary flex-1 md:flex-none flex items-center justify-center gap-2"
+            >
+              <Users className="w-5 h-5" />
+              <span>Connect</span>
+            </motion.button>
+
+            <motion.label
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`glass-button flex-1 md:flex-none flex items-center justify-center gap-2 cursor-pointer ${connections.length > 0
+                  ? 'bg-emerald-500/80 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20'
+                  : 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700'
+                }`}
+            >
+              <Upload className="w-5 h-5" />
+              <span>Send File</span>
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={connections.length === 0}
+              />
+            </motion.label>
+          </div>
+        </motion.div>
+
+        {/* Dashboard Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+
+          {/* Left Column: ID & Peers */}
+          <motion.div
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-1 space-y-6 flex flex-col"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Your Peer ID:</p>
-                <p className="font-mono text-sm text-gray-900 select-all cursor-pointer break-all">{peerId}</p>
+            {/* ID Card */}
+            <div className="glass-panel rounded-2xl p-6 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-20 bg-blue-500/10 blur-[80px] rounded-full group-hover:bg-blue-500/20 transition-all duration-700" />
+
+              <h3 className="text-slate-400 text-sm font-medium mb-2 uppercase tracking-wider">Your Identity</h3>
+              <div
+                onClick={() => { navigator.clipboard.writeText(peerId); }}
+                className="glass-input p-3 rounded-lg font-mono text-cyan-300 text-sm break-all cursor-pointer hover:bg-white/5 transition-colors flex justify-between items-center group/id"
+              >
+                {peerId}
+                <span className="opacity-0 group-hover/id:opacity-100 text-xs text-slate-500">Copy</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+
+              <div className="grid grid-cols-2 gap-3 mt-4">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowScanner(true)}
-                  className="flex items-center space-x-2 px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  className="glass-button-secondary flex flex-col items-center justify-center py-3 gap-1 text-xs"
                 >
-                  <Scan className="w-5 h-5" />
+                  <Scan className="w-5 h-5 text-purple-400" />
                   <span>Scan QR</span>
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowQR(!showQR)}
-                  className="flex items-center space-x-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  className={`glass-button-secondary flex flex-col items-center justify-center py-3 gap-1 text-xs ${showQR ? 'bg-white/10' : ''}`}
                 >
-                  <QrCode className="w-5 h-5" />
-                  <span>{showQR ? 'Hide QR' : 'Show QR'}</span>
+                  <QrCode className="w-5 h-5 text-blue-400" />
+                  <span>Show QR</span>
                 </motion.button>
               </div>
-            </div>
-            <AnimatePresence>
-              {showQR && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 flex justify-center overflow-hidden"
-                >
-                  <QRCodeSVG value={peerId} size={200} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
 
-          <div className="space-y-6">
-            <motion.div layout>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Connected Peers ({connections.length})
-              </h2>
-              <div className="space-y-2">
+              <AnimatePresence>
+                {showQR && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="mt-4 flex justify-center bg-white p-4 rounded-xl"
+                  >
+                    <QRCodeSVG value={peerId} size={180} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Connected Peers */}
+            <div className="glass-panel rounded-2xl p-6 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider">Connected Peers</h3>
+                <span className="bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded-full border border-slate-700">{connections.length}</span>
+              </div>
+
+              <div className="space-y-3 overflow-y-auto flex-1 custom-scrollbar max-h-[300px] lg:max-h-none">
                 <AnimatePresence>
-                  {connections.map((connection) => (
-                    <motion.div
-                      key={connection.id}
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="bg-white/50 backdrop-blur-sm rounded-lg p-3 flex items-center justify-between"
-                    >
-                      <span className="font-mono text-xs sm:text-sm select-all cursor-pointer break-all max-w-[60%] truncate">
-                        {connection.id}
-                      </span>
-                      <div className="flex items-center space-x-3">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                          Connected
-                        </span>
+                  {connections.length > 0 ? (
+                    connections.map((connection) => (
+                      <motion.div
+                        key={connection.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors flex items-center justify-between group"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-900 font-bold text-xs">
+                            {connection.id.substring(0, 2).toUpperCase()}
+                          </div>
+                          <span className="text-sm text-slate-300 font-mono truncate">{connection.id.substring(0, 12)}...</span>
+                        </div>
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           onClick={() => disconnectPeer(connection.id)}
-                          className="text-red-500 hover:text-red-600 transition-colors"
+                          className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <X className="w-5 h-5" />
+                          <X className="w-4 h-4" />
                         </motion.button>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-40 text-slate-500 text-center text-sm p-4 border border-dashed border-slate-700 rounded-xl">
+                      <Zap className="w-8 h-8 mb-2 opacity-50" />
+                      <p>No connections active</p>
+                    </div>
+                  )}
                 </AnimatePresence>
-                {connections.length === 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-gray-500 text-center py-6 sm:py-8 bg-white/50 backdrop-blur-sm rounded-lg"
-                  >
-                    <Users className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-400" />
-                    <p>No peers connected</p>
-                    <p className="text-sm">Click "Connect" or scan a QR code to start sharing files</p>
-                  </motion.div>
-                )}
               </div>
-            </motion.div>
 
-            <motion.div layout>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Files
-              </h2>
-              <FileList files={files} />
-              {files.length === 0 && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-gray-500 text-center py-6 sm:py-8 bg-white/50 backdrop-blur-sm rounded-lg"
+              {connections.length > 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowChat(true)}
+                  className="mt-4 w-full glass-button-secondary flex items-center justify-center gap-2 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/10"
                 >
-                  <Share2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-400" />
-                  <p>No files transferred yet</p>
-                  <p className="text-sm">Connect to a peer and start sharing!</p>
-                </motion.div>
+                  <MessageSquare className="w-4 h-4" />
+                  Chat with Peers
+                </motion.button>
               )}
-            </motion.div>
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Files */}
+          <motion.div
+            initial={{ x: 50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="lg:col-span-2 glass-panel rounded-2xl p-6 flex flex-col min-h-[500px]"
+          >
+            <h2 className="text-xl font-semibold text-slate-100 mb-6 flex items-center gap-2">
+              <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
+              File Transfers
+            </h2>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {files.length > 0 ? (
+                <FileList files={files} />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 opacity-60">
+                  <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                    <Share2 className="w-10 h-10" />
+                  </div>
+                  <p className="text-lg font-medium">Ready to share</p>
+                  <p className="text-sm">Connect to a peer to start transferring files securely.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+        </div>
       </div>
-      
+
       <AnimatePresence>
         {showScanner && (
           <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showChat && (
+          <Chat
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isOpen={showChat}
+            onClose={() => setShowChat(false)}
+            onClear={() => { }} // TODO: Add clear functionality
+          />
         )}
       </AnimatePresence>
     </motion.div>

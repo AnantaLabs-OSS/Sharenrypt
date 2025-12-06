@@ -29,34 +29,34 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onCancel}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
-        className="bg-white rounded-xl shadow-xl max-w-md w-full mx-auto overflow-hidden"
+        className="glass-panel w-full max-w-md mx-auto overflow-hidden rounded-xl border-t border-t-white/10"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-white">
+        <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-cyan-400">
             <Users className="w-6 h-6" />
-            <h3 className="text-xl font-semibold">Connect to Peer</h3>
+            <h3 className="text-xl font-semibold text-slate-100 text-glow">Connect to Peer</h3>
           </div>
           <button
             onClick={onCancel}
-            className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+            className="text-slate-400 hover:text-white hover:bg-white/10 rounded-full p-2 transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6">
           {connectionStatus === 'idle' && (
             <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label htmlFor="peerId" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="mb-6">
+                <label htmlFor="peerId" className="block text-sm font-medium text-slate-400 mb-2">
                   Enter Peer ID
                 </label>
                 <input
@@ -64,8 +64,8 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   id="peerId"
                   value={targetPeerId}
                   onChange={(e) => setTargetPeerId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Paste peer ID here"
+                  className="glass-input w-full px-4 py-3 rounded-lg"
+                  placeholder="Paste peer ID here..."
                   autoFocus
                 />
               </div>
@@ -74,7 +74,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  className="flex-1 glass-button-primary"
                   disabled={!targetPeerId.trim()}
                 >
                   Connect
@@ -84,7 +84,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={onCancel}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="flex-1 glass-button-secondary"
                 >
                   Cancel
                 </motion.button>
@@ -93,17 +93,20 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
           )}
 
           {connectionStatus === 'connecting' && (
-            <div className="py-6 flex flex-col items-center">
-              <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Connecting...</h3>
-              <p className="text-gray-500 text-center mb-4">
-                Establishing secure connection to peer
+            <div className="py-8 flex flex-col items-center">
+              <div className="relative mb-6">
+                <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full" />
+                <Loader2 className="w-12 h-12 text-cyan-400 animate-spin relative z-10" />
+              </div>
+              <h3 className="text-lg font-medium text-slate-200 mb-2">Connecting...</h3>
+              <p className="text-slate-500 text-center mb-6">
+                Establishing secure encrypted channel
               </p>
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onCancel}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="px-6 glass-button-secondary"
               >
                 Cancel
               </motion.button>
@@ -112,19 +115,19 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
 
           {connectionStatus === 'failed' && (
             <div className="py-6 flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                <X className="w-8 h-8 text-red-500" />
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-4">
+                <X className="w-8 h-8 text-rose-500" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Connection Failed</h3>
-              <p className="text-gray-500 text-center mb-4">
-                Unable to connect to the peer. Please check the ID and try again.
+              <h3 className="text-lg font-medium text-slate-200 mb-2">Connection Failed</h3>
+              <p className="text-slate-500 text-center mb-6">
+                Unable to reach peer. Check the ID and network.
               </p>
               <div className="flex space-x-3 w-full">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onRetry}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center justify-center space-x-2"
+                  className="flex-1 glass-button-primary flex items-center justify-center space-x-2"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Retry</span>
@@ -133,7 +136,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onCancel}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="flex-1 glass-button-secondary"
                 >
                   Cancel
                 </motion.button>

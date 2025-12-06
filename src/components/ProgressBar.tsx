@@ -7,8 +7,8 @@ interface ProgressBarProps {
   color?: string;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ 
-  progress, 
+export const ProgressBar: React.FC<ProgressBarProps> = ({
+  progress,
   status,
   color = 'bg-blue-500'
 }) => {
