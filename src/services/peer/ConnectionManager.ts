@@ -55,10 +55,17 @@ export class ConnectionManager {
     }
 
     public addPending(conn: DataConnection): void {
+        if (this.connections.has(conn.peer) || this.pendingConnections.has(conn.peer)) {
+            console.log('Ignoring duplicate connection from:', conn.peer);
+            return;
+        }
+
         console.log('Incoming connection from:', conn.peer);
         this.pendingConnections.set(conn.peer, conn);
         this.service.emit('connection-request', { peerId: conn.peer });
 
+        // If it opens while pending, just log it. 
+        // We only transition to "connected" when user accepts.
         conn.on('open', () => {
             console.log('Pending connection opened from:', conn.peer);
         });
@@ -79,9 +86,9 @@ export class ConnectionManager {
     public accept(targetPeerId: string): void {
         const conn = this.pendingConnections.get(targetPeerId);
         if (conn) {
-            this.setupConnectionEvents(conn);
             this.pendingConnections.delete(targetPeerId);
-            this.sendHandshake(targetPeerId);
+            this.setupConnectionEvents(conn);
+            // If already open, setupConnectionEvents handles the handshake trigger
         }
     }
 
@@ -103,14 +110,19 @@ export class ConnectionManager {
     }
 
     public setupConnectionEvents(conn: DataConnection): void {
-        conn.on('open', () => {
-            console.log('Connection opened with:', conn.peer);
+        const onOpen = () => {
+            console.log('Connection opened/accepted with:', conn.peer);
             this.connections.set(conn.peer, conn);
             this.service.emit('connected', { peerId: conn.peer });
-
             this.startPing(conn.peer);
             this.sendHandshake(conn.peer);
-        });
+        };
+
+        if (conn.open) {
+            onOpen();
+        } else {
+            conn.on('open', onOpen);
+        }
 
         conn.on('data', (data) => {
             this.service.handleIncomingData(data, conn.peer);
