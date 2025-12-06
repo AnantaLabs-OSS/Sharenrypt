@@ -610,147 +610,144 @@ export class PeerService {
       };
 
       // Store for tracking chunks AND keys
-      this.incomingTransfers.set(metadata.id, {
-        ...metadata,
-        chunks: [],
-        chunks: [],
+      chunks: [],
         receivedSize: 0,
-        startTime: Date.now(), // Track start time
-        cryptoKey, // Store the imported key object for fast chunk decryption
+          startTime: Date.now(), // Track start time
+            cryptoKey, // Store the imported key object for fast chunk decryption
       });
 
-      toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
-      toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
-      this.emit('file-incoming', transfer);
-    } catch (e) {
-      console.error("Failed to start file transfer:", e);
-    }
+    toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+    toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+    this.emit('file-incoming', transfer);
+  } catch(e) {
+    console.error("Failed to start file transfer:", e);
+  }
+}
+
+  private async handleFileChunk(data: any): Promise < void> {
+  // data: { id, chunk, iv, offset, totalSize }
+  const transfer = this.incomingTransfers.get(data.id);
+  if(!transfer || !transfer.cryptoKey) return;
+
+try {
+  // Decrypt immediately
+  const iv = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
+  const decryptedChunk = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    transfer.cryptoKey,
+    data.chunk
+  );
+
+  transfer.chunks.push({
+    data: decryptedChunk,
+    offset: data.offset,
+  });
+
+  const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
+
+  // Update received size
+  transfer.receivedSize = data.offset + data.chunk.byteLength;
+
+  // Calculate Speed & ETA
+  const elapsed = (Date.now() - transfer.startTime) / 1000;
+  const speed = transfer.receivedSize / elapsed;
+  const remainingBytes = data.totalSize - transfer.receivedSize;
+  const eta = speed > 0 ? remainingBytes / speed : 0;
+
+  this.emit('file-progress', {
+    id: transfer.id,
+    progress,
+    speed,
+    eta,
+    status: 'downloading',
+  });
+} catch (e) {
+  console.error("Chunk decryption failed", e);
+  // Could request retry here
+}
   }
 
-  private async handleFileChunk(data: any): Promise<void> {
-    // data: { id, chunk, iv, offset, totalSize }
-    const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer || !transfer.cryptoKey) return;
+  private async handleFileComplete(data: any): Promise < void> {
+  const transfer = this.incomingTransfers.get(data.id);
+  if(!transfer) return;
 
-    try {
-      // Decrypt immediately
-      const iv = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
-      const decryptedChunk = await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        transfer.cryptoKey,
-        data.chunk
-      );
+  try {
+    toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
 
-      transfer.chunks.push({
-        data: decryptedChunk,
-        offset: data.offset,
-      });
+    // Reassemble already-decrypted chunks
+    transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
 
-      const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
+    const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
 
-      // Update received size
-      transfer.receivedSize = data.offset + data.chunk.byteLength;
+    for(const chunk of transfer.chunks) {
+  combined.set(new Uint8Array(chunk.data), offset);
+  offset += chunk.data.byteLength;
+}
 
-      // Calculate Speed & ETA
-      const elapsed = (Date.now() - transfer.startTime) / 1000;
-      const speed = transfer.receivedSize / elapsed;
-      const remainingBytes = data.totalSize - transfer.receivedSize;
-      const eta = speed > 0 ? remainingBytes / speed : 0;
+// Create download directly
+const blob = new Blob([combined.buffer], { type: transfer.type });
+const url = URL.createObjectURL(blob);
 
-      this.emit('file-progress', {
-        id: transfer.id,
-        progress,
-        speed,
-        eta,
-        status: 'downloading',
-      });
-    } catch (e) {
-      console.error("Chunk decryption failed", e);
-      // Could request retry here
-    }
-  }
+const a = document.createElement('a');
+a.href = url;
+a.download = transfer.name;
+a.click();
 
-  private async handleFileComplete(data: any): Promise<void> {
-    const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer) return;
+URL.revokeObjectURL(url);
 
-    try {
-      toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
+// Clean up
+this.incomingTransfers.delete(data.id);
 
-      // Reassemble already-decrypted chunks
-      transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+toast.dismiss(data.transferId);
+toast.dismiss(data.id);
 
-      const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
-      const combined = new Uint8Array(totalSize);
-      let offset = 0;
+toast.success('File received!');
+playSound('success');
 
-      for (const chunk of transfer.chunks) {
-        combined.set(new Uint8Array(chunk.data), offset);
-        offset += chunk.data.byteLength;
-      }
+const fileTransfer: FileTransfer = {
+  id: data.id,
+  name: transfer.name,
+  size: transfer.size,
+  type: transfer.type,
+  progress: 100,
+  status: 'completed',
+};
 
-      // Create download directly
-      const blob = new Blob([combined.buffer], { type: transfer.type });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = transfer.name;
-      a.click();
-
-      URL.revokeObjectURL(url);
-
-      // Clean up
-      this.incomingTransfers.delete(data.id);
-
-      toast.dismiss(data.transferId);
-      toast.dismiss(data.id);
-
-      toast.success('File received!');
-      playSound('success');
-
-      const fileTransfer: FileTransfer = {
-        id: data.id,
-        name: transfer.name,
-        size: transfer.size,
-        type: transfer.type,
-        progress: 100,
-        status: 'completed',
-      };
-
-      this.emit('file-received', fileTransfer);
+this.emit('file-received', fileTransfer);
 
     } catch (error) {
-      console.error('Finalization error:', error);
-      toast.dismiss(data.id);
-      toast.error('Failed to save file');
-    }
+  console.error('Finalization error:', error);
+  toast.dismiss(data.id);
+  toast.error('Failed to save file');
+}
   }
 
   public sendTextMessage(targetPeerId: string, text: string): void {
-    const conn = this.connections.get(targetPeerId);
-    if (conn) {
-      conn.send({
-        type: 'text-message',
-        payload: text,
-      });
-    }
+  const conn = this.connections.get(targetPeerId);
+  if(conn) {
+    conn.send({
+      type: 'text-message',
+      payload: text,
+    });
   }
+}
 
   // Event handling
   public on(event: string, handler: Function): void {
-    if (!this.eventHandlers.has(event)) {
-      this.eventHandlers.set(event, new Set());
-    }
-    this.eventHandlers.get(event)?.add(handler);
+  if(!this.eventHandlers.has(event)) {
+  this.eventHandlers.set(event, new Set());
+}
+this.eventHandlers.get(event)?.add(handler);
   }
 
   public off(event: string, handler: Function): void {
-    this.eventHandlers.get(event)?.delete(handler);
-  }
+  this.eventHandlers.get(event)?.delete(handler);
+}
 
   private emit(event: string, data: any): void {
-    this.eventHandlers.get(event)?.forEach((handler) => handler(data));
-  }
+  this.eventHandlers.get(event)?.forEach((handler) => handler(data));
+}
 }
 
