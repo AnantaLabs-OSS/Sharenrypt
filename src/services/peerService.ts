@@ -1,4 +1,4 @@
-import Peer, { DataConnection } from 'peerjs';
+import { Peer, DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import toast from 'react-hot-toast';
 import { FileTransfer } from '../types';
@@ -10,6 +10,7 @@ const CHUNK_SIZE = Number(import.meta.env.VITE_CHUNK_SIZE) || 16384; // 16KB chu
 // const MAX_FILE_SIZE = Number(import.meta.env.VITE_MAX_FILE_SIZE) || 1073741824; // 1GB (Unused but good for ref)
 
 // WebRTC ICE configuration
+// WebRTC ICE configuration
 const ICE_SERVERS = [
   { urls: import.meta.env.VITE_STUN_SERVER_1 },
   { urls: import.meta.env.VITE_STUN_SERVER_2 },
@@ -19,7 +20,7 @@ const ICE_SERVERS = [
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_CREDENTIAL || 'openrelayproject',
   },
-];
+].filter(server => server.urls); // Filter out undefined/empty urls to prevent "Malformed RTCIceServer"
 
 // Connection status types
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'failed';
@@ -47,6 +48,7 @@ export class PeerService {
   private eventHandlers: Map<string, Set<Function>> = new Map();
   private incomingTransfers: Map<string, any> = new Map();
   private peerDeviceInfo: Map<string, DeviceInfo> = new Map();
+  private wakeLockSentinel: any = null; // WakeLockSentinel
 
   constructor() {
     this.initializePeer();
@@ -216,7 +218,32 @@ export class PeerService {
 
     // Emit handshake complete
     this.emit('handshake-complete', { peerId, deviceInfo });
+    this.emit('handshake-complete', { peerId, deviceInfo });
     console.log('Handshake complete with:', peerId);
+  }
+
+  // Wake Lock Helper
+  private async requestWakeLock(): Promise<void> {
+    if ('wakeLock' in navigator) {
+      try {
+        this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+        console.log('Wake Lock active');
+      } catch (err) {
+        console.warn('Wake Lock request failed:', err);
+      }
+    }
+  }
+
+  private async releaseWakeLock(): Promise<void> {
+    if (this.wakeLockSentinel) {
+      try {
+        await this.wakeLockSentinel.release();
+        this.wakeLockSentinel = null;
+        console.log('Wake Lock released');
+      } catch (err) {
+        console.warn('Wake Lock release failed:', err);
+      }
+    }
   }
 
   public async connectToPeer(targetPeerId: string): Promise<boolean> {
@@ -422,20 +449,36 @@ export class PeerService {
     });
   }
 
-
-  // File Transfer Methods - SECURE implementation with Web Worker & Streams
-  // File Transfer Methods - SECURE implementation with Web Worker & Streams
-  public async sendFile(targetPeerId: string, file: File): Promise<void> {
+  // File Transfer Methods
+  public async sendFile(targetPeerId: string, file: File, startingOffset: number = 0): Promise<void> {
     const conn = this.connections.get(targetPeerId);
 
-    if (!conn || !conn.open) {
+    if (!conn) {
       toast.error('Not connected to peer');
       return;
     }
 
+    if (!conn.open) {
+      toast.error('Connection is not open');
+      return;
+    }
+
+    // 0. Enforce File Size Limit (Default: 1GB)
+    // Only enforced for NEW transfers (offset 0), or strictly always?
+    // Let's enforce always, but technically if resuming it's same file.
+    const MAX_FILE_SIZE = Number(import.meta.env.VITE_MAX_FILE_SIZE) || 1073741824;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`File too large! Limit is ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(1)}GB`);
+      this.emit('error', { error: new Error('File size limit exceeded') });
+      return;
+    }
+
     try {
-      // 1. Generate unique key/IV for this file transfer
-      toast.loading('Preparing encryption...', { id: 'encrypting' });
+      // 1. Acquire Wake Lock
+      await this.requestWakeLock();
+
+      // 2. Generate unique key/IV for this file transfer
+      toast.loading(startingOffset > 0 ? 'Resuming transfer...' : 'Preparing encryption...', { id: 'encrypting' });
       const cryptoKey = await Encryption.generateKey();
       const keyStr = await Encryption.exportKey(cryptoKey);
       const transferId = nanoid();
@@ -448,21 +491,21 @@ export class PeerService {
         name: file.name,
         size: file.size,
         type: file.type,
-        progress: 0,
+        progress: Math.round((startingOffset / file.size) * 100),
         status: 'pending',
       };
       this.emit('file-outgoing', transfer);
 
       // 3. Send Metadata (Start Signal) - Send KEY only, IV will be per-chunk
       conn.send({
-        type: 'file-start',
+        type: startingOffset > 0 ? 'file-resume' : 'file-start',
         payload: {
           id: transferId,
           name: file.name,
           size: file.size,
           type: file.type,
           key: keyStr,
-          // No base IV needed if we send per-chunk
+          offset: startingOffset // IMPORTANT: Tell receiver where to start
         },
       });
 
@@ -471,9 +514,12 @@ export class PeerService {
       // 4. Initialize Worker
       const worker = new Worker(new URL('../workers/encryption.worker.ts', import.meta.url), { type: 'module' });
 
-      let offset = 0;
+      let offset = startingOffset;
       const startTime = Date.now();
-      const stream = file.stream();
+
+      // Stream from OFFSET
+      const fileSlice = file.slice(startingOffset);
+      const stream = fileSlice.stream();
       const reader = stream.getReader();
 
       const encryptChunk = (chunk: ArrayBuffer, key: CryptoKey, iv: Uint8Array): Promise<ArrayBuffer> => {
@@ -498,8 +544,13 @@ export class PeerService {
         if (done) break;
 
         const currentConn = conn as any;
+        // Backpressure control
         while (currentConn.bufferedAmount > 1024 * 1024) {
           await new Promise(r => setTimeout(r, 10));
+        }
+
+        if (!this.connections.has(targetPeerId)) {
+          throw new Error('Connection lost');
         }
 
         // Generate unique IV for this chunk
@@ -515,18 +566,19 @@ export class PeerService {
             id: transferId,
             chunk: encryptedChunk,
             iv: btoa(String.fromCharCode(...chunkIv)), // Send IV as string
-            offset,
+            offset, // Current absolute offset
             totalSize: file.size,
           },
         });
 
         offset += value.length;
-        // Use offset for progress (approximate, since encrypted size is slightly larger due to tags)
+
+        // Progress emission
         const progress = Math.round((offset / file.size) * 100);
 
         // Calculate Speed & ETA
         const elapsed = (Date.now() - startTime) / 1000; // seconds
-        const speed = offset / elapsed; // bytes per second
+        const speed = (offset - startingOffset) / elapsed; // bytes per second (current session)
         const remainingBytes = file.size - offset;
         const eta = speed > 0 ? remainingBytes / speed : 0;
 
@@ -540,6 +592,7 @@ export class PeerService {
       }
 
       worker.terminate();
+      this.releaseWakeLock();
 
       // 6. Finish
       conn.send({
@@ -558,8 +611,14 @@ export class PeerService {
       console.error('File send error:', error);
       toast.dismiss('encrypting');
       toast.error('Failed to send file');
+      this.releaseWakeLock(); // Release lock on error
       this.emit('error', { error });
     }
+  }
+
+  // Public Resume API
+  public resumeTransfer(peerId: string, file: File, lastOffset: number) {
+    this.sendFile(peerId, file, lastOffset);
   }
 
   private handleIncomingData(data: any, peerId: string): void {
@@ -577,7 +636,10 @@ export class PeerService {
         this.handleHandshakeResponse(message.payload, peerId);
         break;
       case 'file-start':
-        this.handleFileStart(message.payload);
+        this.handleFileStart(message.payload, false);
+        break;
+      case 'file-resume':
+        this.handleFileStart(message.payload, true);
         break;
       case 'file-chunk':
         this.handleFileChunk(message.payload);
@@ -598,35 +660,72 @@ export class PeerService {
     }
   }
 
-  private async handleFileStart(metadata: any): Promise<void> {
-    // metadata: { id, name, size, type, key, iv } (iv is ignored or used as salt if complex)
+  private async handleFileStart(metadata: any, isResume: boolean = false): Promise<void> {
+    // metadata: { id, name, size, type, key, iv, offset }
 
     try {
       const cryptoKey = await Encryption.importKey(metadata.key);
+
+      const transferData: any = {
+        ...metadata,
+        receivedSize: metadata.offset || 0,
+        startTime: Date.now(),
+        cryptoKey,
+        chunks: [], // Fallback buffer
+      };
+
+      // Fix for above: 'message' is not defined here. metadata has 'offset'.
+      transferData.receivedSize = metadata.offset || 0;
+
+      // 1. Attempt FileSystem Access API (Chrome/Edge)
+      if ('showSaveFilePicker' in window) {
+        try {
+          // Ask user where to save immediately (or try to update existing handle if we had IDB persistence)
+          // For V1 Resume: User re-picks file.
+          const handle = await (window as any).showSaveFilePicker({
+            suggestedName: isResume ? `resume_${metadata.name}` : metadata.name,
+          });
+
+          transferData.fileHandle = handle;
+          transferData.writable = await handle.createWritable({ keepExistingData: isResume });
+
+          if (isResume && metadata.offset > 0) {
+            // Seek to the offset!
+            await transferData.writable.seek(metadata.offset);
+          }
+
+          toast.success(isResume ? 'Resuming to disk...' : 'Streaming directly to disk! 🚀');
+        } catch (err: any) {
+          if (err.name === 'AbortError') {
+            // User cancelled picker
+            toast.error('Transfer cancelled');
+            return;
+          }
+          console.warn('FileSystem Access API failed, falling back to RAM:', err);
+        }
+      }
 
       const transfer: FileTransfer = {
         id: metadata.id,
         name: metadata.name,
         size: metadata.size,
         type: metadata.type,
-        progress: 0,
+        progress: Math.round((transferData.receivedSize / metadata.size) * 100),
         status: 'pending',
+        fileHandle: transferData.fileHandle,
       };
 
-      // Store for tracking chunks AND keys
-      this.incomingTransfers.set(metadata.id, {
-        ...metadata,
-        chunks: [],
-        receivedSize: 0,
-        startTime: Date.now(), // Track start time
-        cryptoKey, // Store the imported key object for fast chunk decryption
-      });
+      this.incomingTransfers.set(metadata.id, transferData);
 
       toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
-      toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+
+      // Acquire Wake Lock for receiver too
+      await this.requestWakeLock();
+
       this.emit('file-incoming', transfer);
     } catch (e) {
       console.error("Failed to start file transfer:", e);
+      toast.error('Failed to initialize transfer');
     }
   }
 
@@ -644,10 +743,16 @@ export class PeerService {
         data.chunk
       );
 
-      transfer.chunks.push({
-        data: decryptedChunk,
-        offset: data.offset,
-      });
+      // STREAMING LOGIC: Write to disk if available
+      if (transfer.writable) {
+        await transfer.writable.write(decryptedChunk);
+      } else {
+        // Fallback: RAM Buffer
+        transfer.chunks.push({
+          data: decryptedChunk,
+          offset: data.offset,
+        });
+      }
 
       const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
 
@@ -669,7 +774,6 @@ export class PeerService {
       });
     } catch (e) {
       console.error("Chunk decryption failed", e);
-      // Could request retry here
     }
   }
 
@@ -680,36 +784,43 @@ export class PeerService {
     try {
       toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
 
-      // Reassemble already-decrypted chunks
-      transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+      if (transfer.writable) {
+        // STREAMING: Close the stream
+        await transfer.writable.close();
+        toast.success(`Saved to disk: ${transfer.name}`);
+      } else {
+        // FALLBACK: Reassemble memory buffer
+        transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
 
-      const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
-      const combined = new Uint8Array(totalSize);
-      let offset = 0;
+        const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
+        const combined = new Uint8Array(totalSize);
+        let offset = 0;
 
-      for (const chunk of transfer.chunks) {
-        combined.set(new Uint8Array(chunk.data), offset);
-        offset += chunk.data.byteLength;
+        for (const chunk of transfer.chunks) {
+          combined.set(new Uint8Array(chunk.data), offset);
+          offset += chunk.data.byteLength;
+        }
+
+        const blob = new Blob([combined.buffer], { type: transfer.type });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = transfer.name;
+        a.click();
+
+        URL.revokeObjectURL(url);
       }
 
-      // Create download directly
-      const blob = new Blob([combined.buffer], { type: transfer.type });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = transfer.name;
-      a.click();
-
-      URL.revokeObjectURL(url);
-
-      // Clean up
+      // Clean up memory
       this.incomingTransfers.delete(data.id);
 
       toast.dismiss(data.transferId);
       toast.dismiss(data.id);
 
-      toast.success('File received!');
+      if (!transfer.writable) {
+        toast.success('File received!');
+      }
       playSound('success');
 
       const fileTransfer: FileTransfer = {
@@ -732,10 +843,13 @@ export class PeerService {
         });
       }
 
+      this.releaseWakeLock();
+
     } catch (error) {
       console.error('Finalization error:', error);
       toast.dismiss(data.id);
       toast.error('Failed to save file');
+      this.releaseWakeLock();
     }
   }
 
@@ -765,4 +879,3 @@ export class PeerService {
     this.eventHandlers.get(event)?.forEach((handler) => handler(data));
   }
 }
-
