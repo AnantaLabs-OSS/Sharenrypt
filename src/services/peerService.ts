@@ -451,7 +451,7 @@ export class PeerService {
         progress: 0,
         status: 'pending',
       };
-      this.emit('transfer-progress', { transfer });
+      this.emit('file-outgoing', transfer);
 
       // 3. Send Metadata (Start Signal) - Send KEY only, IV will be per-chunk
       conn.send({
@@ -523,8 +523,10 @@ export class PeerService {
         // Use offset for progress (approximate, since encrypted size is slightly larger due to tags)
         const progress = Math.round((offset / file.size) * 100);
 
-        this.emit('transfer-progress', {
-          transfer: { ...transfer, progress, status: 'encrypting' },
+        this.emit('file-progress', {
+          id: transfer.id,
+          progress,
+          status: 'encrypting'
         });
       }
 
@@ -542,7 +544,7 @@ export class PeerService {
 
       transfer.status = 'completed';
       transfer.progress = 100;
-      this.emit('transfer-progress', { transfer });
+      this.emit('file-sent', transfer);
 
     } catch (error) {
       console.error('File send error:', error);
@@ -607,7 +609,8 @@ export class PeerService {
       });
 
       toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
-      this.emit('incoming-transfer', { transfer });
+      toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+      this.emit('file-incoming', transfer);
     } catch (e) {
       console.error("Failed to start file transfer:", e);
     }
@@ -634,15 +637,10 @@ export class PeerService {
 
       const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
 
-      this.emit('transfer-progress', {
-        transfer: {
-          id: transfer.id,
-          name: transfer.name,
-          size: transfer.size,
-          type: transfer.type,
-          progress,
-          status: 'downloading',
-        },
+      this.emit('file-progress', {
+        id: transfer.id,
+        progress,
+        status: 'downloading',
       });
     } catch (e) {
       console.error("Chunk decryption failed", e);
@@ -698,7 +696,7 @@ export class PeerService {
         status: 'completed',
       };
 
-      this.emit('transfer-completed', { transfer: fileTransfer });
+      this.emit('file-received', fileTransfer);
 
     } catch (error) {
       console.error('Finalization error:', error);
