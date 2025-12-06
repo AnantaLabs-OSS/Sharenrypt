@@ -7,11 +7,12 @@ let peerServiceInstance: PeerService | null = null;
 
 export const usePeerConnection = () => {
   const [peerId, setPeerId] = useState<string>('');
+  const [username, setUsernameState] = useState<string>('');
   const [connections, setConnections] = useState<PeerConnection[]>([]);
   const [files, setFiles] = useState<FileTransfer[]>([]);
-  const [pendingConnections, setPendingConnections] = useState<string[]>([]);
+  const [pendingConnections, setPendingConnections] = useState<{ id: string; username?: string }[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
-  const [messages, setMessages] = useState<{ peerId: string; text: string; self?: boolean; time: number }[]>([]);
+  const [messages, setMessages] = useState<{ id: string; peerId: string; text: string; self?: boolean; time: number; status: 'sent' | 'delivered' | 'read' }[]>([]);
 
   const peerServiceRef = useRef<PeerService | null>(null);
 
@@ -29,6 +30,11 @@ export const usePeerConnection = () => {
       if (id) {
         setPeerId(id);
       }
+      // Initialize username
+      const existingName = peerServiceInstance!.getUsername();
+      if (existingName) {
+        setUsernameState(existingName);
+      }
     };
 
     updatePeerId();
@@ -38,10 +44,14 @@ export const usePeerConnection = () => {
       setPeerId(data.peerId);
     };
 
-    const handleConnection = (data: { peerId: string }) => {
+    const handleConnection = (data: { peerId: string; deviceInfo?: { username?: string } }) => {
       setConnections(prev => {
         if (!prev.find(c => c.id === data.peerId)) {
-          return [...prev, { id: data.peerId, connected: true }];
+          return [...prev, {
+            id: data.peerId,
+            connected: true,
+            username: data.deviceInfo?.username
+          }];
         }
         return prev;
       });
@@ -52,17 +62,16 @@ export const usePeerConnection = () => {
       setConnections(prev => prev.filter(conn => conn.id !== data.peerId));
     };
 
-    const handleConnectionRequest = (data: { peerId: string }) => {
+    const handleConnectionRequest = (data: { peerId: string; username?: string }) => {
       setPendingConnections(prev => {
-        if (!prev.includes(data.peerId)) {
-          return [...prev, data.peerId];
+        if (!prev.find(p => p.id === data.peerId)) {
+          return [...prev, { id: data.peerId, username: data.username }];
         }
         return prev;
       });
     };
 
     const handleFileIncoming = (data: FileTransfer) => {
-      // console.log('Hook: File Incoming', data);
       setFiles(prev => {
         if (!prev.find(f => f.id === data.id)) {
           return [...prev, data];
@@ -72,7 +81,6 @@ export const usePeerConnection = () => {
     };
 
     const handleFileOutgoing = (data: FileTransfer) => {
-      // console.log('Hook: File Outgoing', data);
       setFiles(prev => {
         if (!prev.find(f => f.id === data.id)) {
           return [...prev, data];
@@ -82,7 +90,6 @@ export const usePeerConnection = () => {
     };
 
     const handleFileProgress = (data: Partial<FileTransfer>) => {
-      // console.log('Hook: File Progress', data.id, data.progress); 
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }
@@ -91,7 +98,6 @@ export const usePeerConnection = () => {
     };
 
     const handleFileReceived = (data: Partial<FileTransfer>) => {
-      // console.log('Hook: File Received', data);
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }
@@ -100,7 +106,6 @@ export const usePeerConnection = () => {
     };
 
     const handleFileSent = (data: Partial<FileTransfer>) => {
-      // console.log('Hook: File Sent', data);
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }
@@ -108,8 +113,23 @@ export const usePeerConnection = () => {
       ));
     };
 
-    const handleMessage = (data: { peerId: string; text: string }) => {
-      setMessages(prev => [...prev, { peerId: data.peerId, text: data.text, time: Date.now() }]);
+    const handleMessage = (data: { peerId: string; text: string; id: string }) => {
+      setMessages(prev => {
+        if (prev.find(m => m.id === data.id)) return prev;
+        return [...prev, {
+          id: data.id,
+          peerId: data.peerId,
+          text: data.text,
+          time: Date.now(),
+          status: 'sent'
+        }];
+      });
+    };
+
+    const handleMessageRead = (data: { peerId: string; messageId: string }) => {
+      setMessages(prev => prev.map(msg =>
+        msg.id === data.messageId ? { ...msg, status: 'read' } : msg
+      ));
     };
 
     // Register event listeners
@@ -123,6 +143,7 @@ export const usePeerConnection = () => {
     peerServiceInstance.on('file-received', handleFileReceived);
     peerServiceInstance.on('file-sent', handleFileSent);
     peerServiceInstance.on('message', handleMessage);
+    peerServiceInstance.on('message-read', handleMessageRead);
 
     // Clean up event listeners on unmount
     return () => {
@@ -137,6 +158,7 @@ export const usePeerConnection = () => {
         peerServiceInstance.off('file-received', handleFileReceived);
         peerServiceInstance.off('file-sent', handleFileSent);
         peerServiceInstance.off('message', handleMessage);
+        peerServiceInstance.off('message-read', handleMessageRead);
       }
     };
   }, []);
@@ -152,14 +174,14 @@ export const usePeerConnection = () => {
     if (!peerServiceRef.current) return;
 
     peerServiceRef.current.acceptConnection(targetPeerId);
-    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+    setPendingConnections(prev => prev.filter(p => p.id !== targetPeerId));
   }, []);
 
   const rejectConnection = useCallback((targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
     peerServiceRef.current.rejectConnection(targetPeerId);
-    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+    setPendingConnections(prev => prev.filter(p => p.id !== targetPeerId));
   }, []);
 
   const disconnectPeer = useCallback((targetPeerId: string) => {
@@ -174,10 +196,35 @@ export const usePeerConnection = () => {
     await peerServiceRef.current.sendFile(targetPeerId, file);
   }, []);
 
+  const resumeTransfer = useCallback((targetPeerId: string, file: File, lastOffset: number) => {
+    if (!peerServiceRef.current) return;
+    peerServiceRef.current.resumeTransfer(targetPeerId, file, lastOffset);
+  }, []);
+
   const sendTextMessage = useCallback((text: string, targetPeerId: string) => {
     if (!peerServiceRef.current) return;
-    peerServiceRef.current.sendTextMessage(targetPeerId, text);
-    setMessages(prev => [...prev, { peerId: 'Me', text, self: true, time: Date.now() }]);
+    const id = peerServiceRef.current.sendTextMessage(targetPeerId, text);
+    if (id) {
+      setMessages(prev => [...prev, {
+        id,
+        peerId: 'Me',
+        text,
+        self: true,
+        time: Date.now(),
+        status: 'sent'
+      }]);
+    }
+  }, []);
+
+  const markMessageAsRead = useCallback((targetPeerId: string, messageId: string) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.sendReadReceipt(targetPeerId, messageId);
+
+      // Mark locally as read so we don't send receipt again
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId ? { ...msg, status: 'read' } : msg
+      ));
+    }
   }, []);
 
   const retryConnection = useCallback((targetPeerId: string) => {
@@ -185,8 +232,16 @@ export const usePeerConnection = () => {
     if (peerServiceRef.current) peerServiceRef.current.connectToPeer(targetPeerId);
   }, []);
 
+  const setUsername = useCallback((name: string) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.setUsername(name);
+      setUsernameState(name);
+    }
+  }, []);
+
   return {
     peerId,
+    username,
     connections,
     files,
     messages,
@@ -194,10 +249,13 @@ export const usePeerConnection = () => {
     connectionStatus,
     connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connectToPeer(id); },
     sendFile,
+    resumeTransfer,
     sendTextMessage,
     disconnectPeer,
     acceptConnection,
     rejectConnection,
-    retryConnection
+    retryConnection,
+    setUsername,
+    markMessageAsRead
   };
 };

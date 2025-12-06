@@ -4,12 +4,14 @@ import { UserPlus } from 'lucide-react';
 
 interface ConnectionRequestProps {
   peerId: string;
+  username?: string;
   onAccept: () => void;
   onReject: () => void;
 }
 
 export const ConnectionRequest: React.FC<ConnectionRequestProps> = ({
   peerId,
+  username,
   onAccept,
   onReject,
 }) => {
@@ -31,7 +33,16 @@ export const ConnectionRequest: React.FC<ConnectionRequestProps> = ({
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-slate-100 text-glow">Incoming Connection</h3>
             <p className="text-sm text-slate-400 mt-1">
-              A peer wants to connect:
+              {username ? (
+                <>
+                  <span className="text-cyan-300 font-medium">{username}</span>
+                  <span className="block text-xs opacity-70">({peerId})</span>
+                </>
+              ) : (
+                <span className="font-mono">{peerId}</span>
+              )}
+              <br />
+              wants to connect using P2P.
             </p>
             <p className="text-sm font-mono bg-slate-950/50 border border-slate-700 p-2 rounded mt-2 select-all break-all text-cyan-200 shadow-inner">
               {peerId}
