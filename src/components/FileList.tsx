@@ -66,26 +66,6 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
                       </span>
                     </div>
                     <ProgressBar
-                      progress={file.progress}
-                      status=""
-                      color="bg-cyan-500"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={`px-2 py-0.5 rounded-full border ${file.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' :
-                        file.status === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' :
-                          'bg-slate-700/50 border-slate-600 text-slate-400'
-                      }`}>
-                      {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div >
-        ))}
-      </AnimatePresence >
     </div >
-  );
+                );
 };

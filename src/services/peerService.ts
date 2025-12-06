@@ -548,12 +548,11 @@ export class PeerService {
       });
 
       toast.dismiss(transferId);
-      toast.success('File sent successfully!');
-      playSound('success');
+      toast.success('File sent! Waiting for confirmation...');
 
-      transfer.status = 'completed';
+      transfer.status = 'waiting';
       transfer.progress = 100;
-      this.emit('file-sent', transfer);
+      this.emit('file-progress', transfer);
 
     } catch (error) {
       console.error('File send error:', error);
@@ -584,7 +583,12 @@ export class PeerService {
         this.handleFileChunk(message.payload);
         break;
       case 'file-complete':
-        this.handleFileComplete(message.payload);
+        this.handleFileComplete(message.payload, peerId);
+        break;
+      case 'file-ack':
+        this.emit('file-sent', { id: message.payload.id, status: 'completed' });
+        toast.success('Peer confirmed receipt!');
+        playSound('success');
         break;
       case 'text-message':
         this.emit('message', { peerId, text: message.payload });
@@ -669,7 +673,7 @@ export class PeerService {
     }
   }
 
-  private async handleFileComplete(data: any): Promise<void> {
+  private async handleFileComplete(data: any, peerId: string): Promise<void> {
     const transfer = this.incomingTransfers.get(data.id);
     if (!transfer) return;
 
@@ -718,6 +722,15 @@ export class PeerService {
       };
 
       this.emit('file-received', fileTransfer);
+
+      // Send ACK back to sender
+      const conn = this.connections.get(peerId);
+      if (conn) {
+        conn.send({
+          type: 'file-ack',
+          payload: { id: data.id }
+        });
+      }
 
     } catch (error) {
       console.error('Finalization error:', error);
