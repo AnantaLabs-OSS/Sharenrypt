@@ -60,19 +60,25 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-1">
                   <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
-                  {isActive(file.status) && file.speed !== undefined && file.speed > 0 && (
-                    <span className="text-xs text-gray-500 font-mono">
-                      {formatSize(file.speed)}/s • ETA: {formatTime(file.eta || 0)}
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end">
+                    {isActive(file.status) && (
+                      <span className="text-xs text-gray-500 font-mono">
+                        {file.speed && file.speed > 0 ? `${formatSize(file.speed)}/s` : 'Calculating...'}
+                        {file.eta !== undefined && file.eta > 0 && ` • ${formatTime(file.eta)}`}
+                      </span>
+                    )}
+                    {file.status === 'completed' && (
+                      <span className="text-xs text-green-600 font-medium">Completed</span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-sm text-gray-500 mb-2">{formatSize(file.size)}</p>
 
-                {isActive(file.status) && (
+                {(isActive(file.status) || file.status === 'completed') && (
                   <ProgressBar
                     progress={file.progress}
-                    status={file.status.charAt(0).toUpperCase() + file.status.slice(1) + '...'}
-                    color="bg-blue-500"
+                    status={file.status === 'completed' ? 'Done' : file.status.charAt(0).toUpperCase() + file.status.slice(1) + '...'}
+                    color={file.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'}
                   />
                 )}
               </div>
