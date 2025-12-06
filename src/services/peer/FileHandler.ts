@@ -95,6 +95,9 @@ export class FileHandler {
                 speed: 0,
                 eta: 0
             };
+
+            // Critical: Register file in UI List
+            this.service.emit('file-outgoing', { ...transfer });
             this.service.emit('file-progress', { ...transfer });
 
             conn.send({
@@ -271,16 +274,14 @@ export class FileHandler {
             const eta = speed > 0 ? Math.ceil(remaining / speed) : 0;
 
             this.service.emit('file-progress', {
-                transfer: {
-                    id: transfer.id,
-                    name: transfer.name,
-                    size: transfer.size,
-                    type: transfer.type,
-                    progress,
-                    status: 'downloading',
-                    speed,
-                    eta
-                },
+                id: transfer.id,
+                name: transfer.name,
+                size: transfer.size,
+                type: transfer.type,
+                progress,
+                status: 'downloading',
+                speed,
+                eta
             });
         } catch (e) {
             console.error("Chunk save failed", e);
