@@ -140,12 +140,7 @@ export const usePeerConnection = () => {
     if (!peerServiceRef.current) return;
 
     setConnectionStatus('connecting');
-    const success = await peerServiceRef.current.connect(targetPeerId);
-    // Note: peerService.connect is void in previous code, need to check if it returns success boolean or connection status is handled by events.
-    // PeerService.ts connect returns void. It sets up connection events.
-    // The previous code had `await peerServiceRef.current.connectToPeer` but that method didn't exist in the viewed PeerService.ts?
-    // Wait, PeerService.ts has `connect(targetPeerId)`.
-    // I need to be careful here. I will assume it returns void and status is updated via events.
+    await peerServiceRef.current.connectToPeer(targetPeerId);
   }, []);
 
   const acceptConnection = useCallback((targetPeerId: string) => {
@@ -165,7 +160,7 @@ export const usePeerConnection = () => {
   const disconnectPeer = useCallback((targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
-    peerServiceRef.current.disconnect(targetPeerId);
+    peerServiceRef.current.disconnectPeer(targetPeerId);
   }, []);
 
   const sendFile = useCallback(async (file: File, targetPeerId: string) => {
@@ -182,7 +177,7 @@ export const usePeerConnection = () => {
 
   const retryConnection = useCallback((targetPeerId: string) => {
     setConnectionStatus('idle');
-    if (peerServiceRef.current) peerServiceRef.current.connect(targetPeerId);
+    if (peerServiceRef.current) peerServiceRef.current.connectToPeer(targetPeerId);
   }, []);
 
   return {
@@ -192,7 +187,7 @@ export const usePeerConnection = () => {
     messages,
     pendingConnections,
     connectionStatus,
-    connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connect(id); },
+    connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connectToPeer(id); },
     sendFile,
     sendTextMessage,
     disconnectPeer,
