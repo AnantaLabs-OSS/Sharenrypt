@@ -76,7 +76,7 @@ export class PeerService implements ConnectionEvents, FileHandlerEvents {
 
     this.peer.on('connection', (conn) => {
       this.connectionManager.addPending(conn);
-      this.emit('connection-request', { peerId: conn.peer });
+      // connectionManager handles the emit
     });
 
     this.peer.on('error', (err) => {

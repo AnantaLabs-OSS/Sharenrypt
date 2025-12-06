@@ -1,10 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { PeerService } from '../services/peerService';
+import { useState, useEffect, useCallback } from 'react';
+import { peerService } from '../services/peerService';
 import { FileTransfer, PeerConnection, QueueItem, ChatMessage } from '../types';
 import { nanoid } from 'nanoid';
-
-// Create singleton instance
-let peerServiceInstance: PeerService | null = null;
 
 export const usePeerConnection = () => {
   const [peerId, setPeerId] = useState<string>('');
@@ -15,25 +12,15 @@ export const usePeerConnection = () => {
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
-  const peerServiceRef = useRef<PeerService | null>(null);
+  // Use the singleton directly
+  const peerServiceInstance = peerService;
 
   useEffect(() => {
-    // Initialize PeerService once
-    if (!peerServiceInstance) {
-      peerServiceInstance = new PeerService();
+    // Set peer ID if already ready
+    const currentId = peerServiceInstance.getPeerId();
+    if (currentId) {
+      setPeerId(currentId);
     }
-
-    peerServiceRef.current = peerServiceInstance;
-
-    // Set peer ID once it's ready
-    const updatePeerId = () => {
-      const id = peerServiceInstance!.getPeerId();
-      if (id) {
-        setPeerId(id);
-      }
-    };
-
-    updatePeerId();
 
     // Listen for ready event
     const handleReady = (data: { peerId: string }) => {
@@ -147,69 +134,55 @@ export const usePeerConnection = () => {
 
     // Clean up event listeners on unmount
     return () => {
-      if (peerServiceInstance) {
-        peerServiceInstance.off('ready', handleReady);
-        peerServiceInstance.off('connection', handleConnection);
-        peerServiceInstance.off('disconnection', handleDisconnection);
-        peerServiceInstance.off('connection-request', handleConnectionRequest);
-        peerServiceInstance.off('file-incoming', handleFileIncoming);
-        peerServiceInstance.off('file-outgoing', handleFileOutgoing);
-        peerServiceInstance.off('file-progress', handleFileProgress);
-        peerServiceInstance.off('file-received', handleFileReceived);
-        peerServiceInstance.off('file-sent', handleFileSent);
-        peerServiceInstance.off('latency-update', handleLatencyUpdate);
-        peerServiceInstance.off('queue-updated', handleQueueUpdated);
-        peerServiceInstance.off('message', handleMessage);
-      }
+      peerServiceInstance.off('ready', handleReady);
+      peerServiceInstance.off('connection', handleConnection);
+      peerServiceInstance.off('disconnection', handleDisconnection);
+      peerServiceInstance.off('connection-request', handleConnectionRequest);
+      peerServiceInstance.off('file-incoming', handleFileIncoming);
+      peerServiceInstance.off('file-outgoing', handleFileOutgoing);
+      peerServiceInstance.off('file-progress', handleFileProgress);
+      peerServiceInstance.off('file-received', handleFileReceived);
+      peerServiceInstance.off('file-sent', handleFileSent);
+      peerServiceInstance.off('latency-update', handleLatencyUpdate);
+      peerServiceInstance.off('queue-updated', handleQueueUpdated);
+      peerServiceInstance.off('message', handleMessage);
     };
 
   }, []);
 
   const connectToPeer = useCallback(async (targetPeerId: string) => {
-    if (!peerServiceRef.current) return;
-
     setConnectionStatus('connecting');
-    peerServiceRef.current.connect(targetPeerId);
+    peerServiceInstance.connect(targetPeerId);
   }, []);
 
   const acceptConnection = useCallback((targetPeerId: string) => {
-    if (!peerServiceRef.current) return;
-
-    peerServiceRef.current.acceptConnection(targetPeerId);
+    peerServiceInstance.acceptConnection(targetPeerId);
     setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
   }, []);
 
   const rejectConnection = useCallback((targetPeerId: string) => {
-    if (!peerServiceRef.current) return;
-
-    peerServiceRef.current.rejectConnection(targetPeerId);
+    peerServiceInstance.rejectConnection(targetPeerId);
     setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
   }, []);
 
   const disconnectPeer = useCallback((targetPeerId: string) => {
-    if (!peerServiceRef.current) return;
-
-    peerServiceRef.current.disconnect(targetPeerId);
+    peerServiceInstance.disconnect(targetPeerId);
   }, []);
 
   const sendFile = useCallback(async (file: File, targetPeerId: string) => {
-    if (!peerServiceRef.current) return;
-    await peerServiceRef.current.sendFile(targetPeerId, file);
+    await peerServiceInstance.sendFile(targetPeerId, file);
   }, []);
 
   const addToQueue = useCallback(async (targetPeerId: string, files: FileList | File[]) => {
-    if (!peerServiceRef.current) return;
-    await peerServiceRef.current.addToQueue(targetPeerId, files);
+    await peerServiceInstance.addToQueue(targetPeerId, files);
   }, []);
 
   const removeFromQueue = useCallback((id: string) => {
-    if (!peerServiceRef.current) return;
-    peerServiceRef.current.removeFromQueue(id);
+    peerServiceInstance.removeFromQueue(id);
   }, []);
 
   const clearCompleted = useCallback(() => {
-    if (!peerServiceRef.current) return;
-    peerServiceRef.current.clearCompleted();
+    peerServiceInstance.clearCompleted();
   }, []);
 
   const retryConnection = useCallback((targetPeerId: string) => {
@@ -218,14 +191,12 @@ export const usePeerConnection = () => {
   }, [connectToPeer]);
 
   const sendMessage = useCallback((targetPeerId: string, text: string) => {
-    if (!peerServiceRef.current) return;
-
-    peerServiceRef.current.sendTextMessage(targetPeerId, text);
+    peerServiceInstance.sendTextMessage(targetPeerId, text);
 
     // Add to local history
     const message: ChatMessage = {
       id: nanoid(),
-      senderId: peerServiceRef.current.getPeerId(),
+      senderId: peerServiceInstance.getPeerId(),
       text,
       timestamp: Date.now(),
       isSelf: true
