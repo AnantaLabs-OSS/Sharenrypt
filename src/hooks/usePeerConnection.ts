@@ -62,6 +62,7 @@ export const usePeerConnection = () => {
     };
 
     const handleFileIncoming = (data: FileTransfer) => {
+      console.log('Hook: File Incoming', data);
       setFiles(prev => {
         if (!prev.find(f => f.id === data.id)) {
           return [...prev, data];
@@ -71,6 +72,7 @@ export const usePeerConnection = () => {
     };
 
     const handleFileOutgoing = (data: FileTransfer) => {
+      console.log('Hook: File Outgoing', data);
       setFiles(prev => {
         if (!prev.find(f => f.id === data.id)) {
           return [...prev, data];
@@ -80,6 +82,7 @@ export const usePeerConnection = () => {
     };
 
     const handleFileProgress = (data: Partial<FileTransfer>) => {
+      // console.log('Hook: File Progress', data.id, data.progress); // Commented out to reduce noise
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }
@@ -88,6 +91,7 @@ export const usePeerConnection = () => {
     };
 
     const handleFileReceived = (data: Partial<FileTransfer>) => {
+      console.log('Hook: File Received', data);
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }
@@ -96,6 +100,7 @@ export const usePeerConnection = () => {
     };
 
     const handleFileSent = (data: Partial<FileTransfer>) => {
+      console.log('Hook: File Sent', data);
       setFiles(prev => prev.map(file =>
         file.id === data.id
           ? { ...file, ...data }

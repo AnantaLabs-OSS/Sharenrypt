@@ -1,13 +1,3 @@
-import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
-import { Toaster } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-import { usePeerConnection } from './hooks/usePeerConnection';
-import { FileList } from './components/FileList';
-import { QRScanner } from './components/QRScanner';
-import { ConnectionRequest } from './components/ConnectionRequest';
-import { ConnectionDialog } from './components/ConnectionDialog';
 
 import React, { useCallback, useState } from 'react';
 import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap } from 'lucide-react';
@@ -162,8 +152,8 @@ function App() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className={`glass-button flex-1 md:flex-none flex items-center justify-center gap-2 cursor-pointer ${connections.length > 0
-                  ? 'bg-emerald-500/80 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20'
-                  : 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700'
+                ? 'bg-emerald-500/80 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20'
+                : 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-700'
                 }`}
             >
               <Upload className="w-5 h-5" />
