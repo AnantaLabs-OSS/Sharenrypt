@@ -8,6 +8,19 @@ interface FileListProps {
   files: FileTransfer[];
 }
 
+export const formatSize = (bytes: number) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+};
+
+export const formatTime = (seconds: number) => {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${seconds % 60}s`;
+};
+
 export const FileList: React.FC<FileListProps> = ({ files }) => {
   const getStatusIcon = (status: FileTransfer['status']) => {
     switch (status) {
@@ -23,12 +36,8 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
     }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
-  };
+  const isActive = (status: FileTransfer['status']) =>
+    ['transferring', 'encrypting', 'downloading'].includes(status);
 
   return (
     <div className="space-y-4">
@@ -42,30 +51,29 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
             className="bg-white/50 backdrop-blur-sm border border-gray-100 p-4 rounded-lg shadow-sm hover:shadow-md transition-all"
           >
             <div className="flex items-center space-x-4">
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.1 }}
                 className="flex-shrink-0"
               >
                 <File className="w-8 h-8 text-blue-500" />
               </motion.div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
-                <p className="text-sm text-gray-500">{formatSize(file.size)}</p>
-                {file.status === 'transferring' && (
-                  <>
-                    <ProgressBar
-                      progress={file.progress}
-                      status="Transfer Progress"
-                      color="bg-blue-500"
-                    />
-                    {file.encryptionProgress !== undefined && (
-                      <ProgressBar
-                        progress={file.encryptionProgress}
-                        status="Encryption Progress"
-                        color="bg-purple-500"
-                      />
-                    )}
-                  </>
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
+                  {isActive(file.status) && file.speed !== undefined && file.speed > 0 && (
+                    <span className="text-xs text-gray-500 font-mono">
+                      {formatSize(file.speed)}/s • ETA: {formatTime(file.eta || 0)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mb-2">{formatSize(file.size)}</p>
+
+                {isActive(file.status) && (
+                  <ProgressBar
+                    progress={file.progress}
+                    status={file.status.charAt(0).toUpperCase() + file.status.slice(1) + '...'}
+                    color="bg-blue-500"
+                  />
                 )}
               </div>
               <motion.div whileHover={{ scale: 1.1 }}>

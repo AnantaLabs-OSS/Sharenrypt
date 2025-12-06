@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PeerService } from '../services/peerService';
-import { FileTransfer, PeerConnection } from '../types';
+import { FileTransfer, PeerConnection, QueueItem, ChatMessage } from '../types';
+import { nanoid } from 'nanoid';
 
 // Create singleton instance
 let peerServiceInstance: PeerService | null = null;
@@ -9,8 +10,10 @@ export const usePeerConnection = () => {
   const [peerId, setPeerId] = useState<string>('');
   const [connections, setConnections] = useState<PeerConnection[]>([]);
   const [files, setFiles] = useState<FileTransfer[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [pendingConnections, setPendingConnections] = useState<string[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const peerServiceRef = useRef<PeerService | null>(null);
 
@@ -102,6 +105,29 @@ export const usePeerConnection = () => {
       ));
     };
 
+    const handleLatencyUpdate = (data: { peerId: string, latency: number }) => {
+      setConnections(prev => prev.map(conn =>
+        conn.id === data.peerId
+          ? { ...conn, latency: data.latency }
+          : conn
+      ));
+    };
+
+    const handleQueueUpdated = (data: { queue: QueueItem[] }) => {
+      setQueue([...data.queue]);
+    };
+
+    const handleMessage = (data: { peerId: string, text: string }) => {
+      const message: ChatMessage = {
+        id: nanoid(),
+        senderId: data.peerId,
+        text: data.text,
+        timestamp: Date.now(),
+        isSelf: false
+      };
+      setChatHistory(prev => [...prev, message]);
+    };
+
     // Register event listeners
     peerServiceInstance.on('ready', handleReady);
     peerServiceInstance.on('connection', handleConnection);
@@ -112,6 +138,12 @@ export const usePeerConnection = () => {
     peerServiceInstance.on('file-progress', handleFileProgress);
     peerServiceInstance.on('file-received', handleFileReceived);
     peerServiceInstance.on('file-sent', handleFileSent);
+    peerServiceInstance.on('latency-update', handleLatencyUpdate);
+    peerServiceInstance.on('queue-updated', handleQueueUpdated);
+    peerServiceInstance.on('message', handleMessage);
+
+    // Initial queue state
+    setQueue(peerServiceInstance.getQueue());
 
     // Clean up event listeners on unmount
     return () => {
@@ -125,18 +157,19 @@ export const usePeerConnection = () => {
         peerServiceInstance.off('file-progress', handleFileProgress);
         peerServiceInstance.off('file-received', handleFileReceived);
         peerServiceInstance.off('file-sent', handleFileSent);
+        peerServiceInstance.off('latency-update', handleLatencyUpdate);
+        peerServiceInstance.off('queue-updated', handleQueueUpdated);
+        peerServiceInstance.off('message', handleMessage);
       }
     };
+
   }, []);
 
   const connectToPeer = useCallback(async (targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
     setConnectionStatus('connecting');
-    const success = await peerServiceRef.current.connectToPeer(targetPeerId);
-    if (!success) {
-      setConnectionStatus('failed');
-    }
+    peerServiceRef.current.connect(targetPeerId);
   }, []);
 
   const acceptConnection = useCallback((targetPeerId: string) => {
@@ -156,13 +189,27 @@ export const usePeerConnection = () => {
   const disconnectPeer = useCallback((targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
-    peerServiceRef.current.disconnectPeer(targetPeerId);
+    peerServiceRef.current.disconnect(targetPeerId);
   }, []);
 
   const sendFile = useCallback(async (file: File, targetPeerId: string) => {
     if (!peerServiceRef.current) return;
-
     await peerServiceRef.current.sendFile(targetPeerId, file);
+  }, []);
+
+  const addToQueue = useCallback(async (targetPeerId: string, files: FileList | File[]) => {
+    if (!peerServiceRef.current) return;
+    await peerServiceRef.current.addToQueue(targetPeerId, files);
+  }, []);
+
+  const removeFromQueue = useCallback((id: string) => {
+    if (!peerServiceRef.current) return;
+    peerServiceRef.current.removeFromQueue(id);
+  }, []);
+
+  const clearCompleted = useCallback(() => {
+    if (!peerServiceRef.current) return;
+    peerServiceRef.current.clearCompleted();
   }, []);
 
   const retryConnection = useCallback((targetPeerId: string) => {
@@ -170,17 +217,39 @@ export const usePeerConnection = () => {
     connectToPeer(targetPeerId);
   }, [connectToPeer]);
 
+  const sendMessage = useCallback((targetPeerId: string, text: string) => {
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.sendTextMessage(targetPeerId, text);
+
+    // Add to local history
+    const message: ChatMessage = {
+      id: nanoid(),
+      senderId: peerServiceRef.current.getPeerId(),
+      text,
+      timestamp: Date.now(),
+      isSelf: true
+    };
+    setChatHistory(prev => [...prev, message]);
+  }, []);
+
   return {
     peerId,
     connections,
     files,
+    queue,
     pendingConnections,
     connectionStatus,
     connectToPeer,
     sendFile,
+    addToQueue,
+    removeFromQueue,
+    clearCompleted,
     disconnectPeer,
     acceptConnection,
     rejectConnection,
-    retryConnection
+    retryConnection,
+    chatHistory,
+    sendMessage
   };
 };

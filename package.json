@@ -12,6 +12,7 @@
   "dependencies": {
     "framer-motion": "^11.0.8",
     "html5-qrcode": "^2.3.8",
+    "idb": "^8.0.3",
     "lucide-react": "^0.344.0",
     "nanoid": "^5.0.6",
     "peerjs": "^1.5.5",

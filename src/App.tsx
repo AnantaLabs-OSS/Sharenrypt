@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan } from 'lucide-react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,24 +8,33 @@ import { FileList } from './components/FileList';
 import { QRScanner } from './components/QRScanner';
 import { ConnectionRequest } from './components/ConnectionRequest';
 import { ConnectionDialog } from './components/ConnectionDialog';
+import { TransferQueue } from './components/TransferQueue';
+import { Chat } from './components/Chat';
 
 function App() {
-  const { 
-    peerId, 
-    connections, 
-    files, 
+  const {
+    peerId,
+    connections,
+    files,
     pendingConnections,
     connectionStatus,
-    connectToPeer, 
-    sendFile, 
+    connectToPeer,
+    sendFile,
     disconnectPeer,
     acceptConnection,
     rejectConnection,
-    retryConnection
+    retryConnection,
+    queue,
+    addToQueue,
+    removeFromQueue,
+    clearCompleted,
+    chatHistory,
+    sendMessage
   } = usePeerConnection();
   const [showQR, setShowQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
 
   const handleConnect = useCallback(() => {
@@ -41,12 +50,15 @@ function App() {
 
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file && connections.length > 0) {
-        sendFile(file, connections[0].id);
+      const files = event.target.files;
+      if (files && files.length > 0 && connections.length > 0) {
+        // Broadcast to all connected peers
+        connections.forEach(conn => {
+          addToQueue(conn.id, files);
+        });
       }
     },
-    [connections, sendFile]
+    [connections, addToQueue]
   );
 
   const handleScan = useCallback((scannedPeerId: string) => {
@@ -54,14 +66,21 @@ function App() {
     setShowScanner(false);
   }, [connectToPeer]);
 
+  const handleSendMessage = useCallback((text: string) => {
+    // Broadcast to all connected peers
+    connections.forEach(conn => {
+      sendMessage(conn.id, text);
+    });
+  }, [connections, sendMessage]);
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50"
     >
       <Toaster position="top-right" />
-      
+
       <AnimatePresence>
         {pendingConnections.map((pendingPeerId) => (
           <ConnectionRequest
@@ -87,13 +106,13 @@ function App() {
       </AnimatePresence>
 
       <div className="max-w-4xl mx-auto p-3 sm:p-6">
-        <motion.div 
+        <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 sm:p-6 mb-6"
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <motion.div 
+            <motion.div
               className="flex items-center space-x-3"
               whileHover={{ scale: 1.05 }}
             >
@@ -112,28 +131,37 @@ function App() {
                 <Users className="w-5 h-5" />
                 <span>Connect</span>
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowChat(!showChat)}
+                className={`flex items-center justify-center space-x-2 px-4 py-2 ${showChat ? 'bg-blue-600' : 'bg-gray-800'} text-white rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg w-full sm:w-auto`}
+              >
+                <MessageSquare className="w-5 h-5" />
+                <span>Chat</span>
+              </motion.button>
               <motion.label
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`flex items-center justify-center space-x-2 px-4 py-2 ${
-                  connections.length > 0 
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 cursor-pointer shadow-md hover:shadow-lg' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                } text-white rounded-lg transition-all w-full sm:w-auto`}
+                className={`flex items-center justify-center space-x-2 px-4 py-2 ${connections.length > 0
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 cursor-pointer shadow-md hover:shadow-lg'
+                  : 'bg-gray-400 cursor-not-allowed'
+                  } text-white rounded-lg transition-all w-full sm:w-auto`}
               >
                 <Upload className="w-5 h-5" />
-                <span>Send File</span>
+                <span>{connections.length > 1 ? 'Send to All' : 'Send File'}</span>
                 <input
                   type="file"
                   className="hidden"
                   onChange={handleFileSelect}
                   disabled={connections.length === 0}
+                  multiple
                 />
               </motion.label>
             </div>
           </div>
 
-          <motion.div 
+          <motion.div
             className="bg-white/50 backdrop-blur-sm rounded-lg p-4 mb-6"
             whileHover={{ scale: 1.01 }}
           >
@@ -165,7 +193,7 @@ function App() {
             </div>
             <AnimatePresence>
               {showQR && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
@@ -196,6 +224,14 @@ function App() {
                         {connection.id}
                       </span>
                       <div className="flex items-center space-x-3">
+                        {connection.latency !== undefined && (
+                          <span className={`px-2 py-1 text-xs rounded-full ${connection.latency < 100 ? 'bg-green-100 text-green-800' :
+                            connection.latency < 300 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                            {connection.latency}ms
+                          </span>
+                        )}
                         <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                           Connected
                         </span>
@@ -212,7 +248,7 @@ function App() {
                   ))}
                 </AnimatePresence>
                 {connections.length === 0 && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="text-gray-500 text-center py-6 sm:py-8 bg-white/50 backdrop-blur-sm rounded-lg"
@@ -231,7 +267,7 @@ function App() {
               </h2>
               <FileList files={files} />
               {files.length === 0 && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-gray-500 text-center py-6 sm:py-8 bg-white/50 backdrop-blur-sm rounded-lg"
@@ -245,12 +281,25 @@ function App() {
           </div>
         </motion.div>
       </div>
-      
+
       <AnimatePresence>
         {showScanner && (
           <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />
         )}
       </AnimatePresence>
+
+      <TransferQueue
+        items={queue}
+        onRemove={removeFromQueue}
+        onClearCompleted={clearCompleted}
+      />
+
+      <Chat
+        messages={chatHistory}
+        onSendMessage={handleSendMessage}
+        isOpen={showChat}
+        onClose={() => setShowChat(false)}
+      />
     </motion.div>
   );
 }
