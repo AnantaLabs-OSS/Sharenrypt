@@ -17,6 +17,8 @@ export interface ConnectionEvents {
 export class ConnectionManager {
     private connections: Map<string, DataConnection> = new Map();
     private pendingConnections: Map<string, DataConnection> = new Map();
+    private pendingDataHandlers: Map<string, (data: any) => void> = new Map();
+    private pendingCloseHandlers: Map<string, () => void> = new Map();
     private pingIntervals: Map<string, any> = new Map();
     private latencies: Map<string, number> = new Map();
     private peerDeviceInfo: Map<string, DeviceInfo> = new Map();
@@ -64,34 +66,52 @@ export class ConnectionManager {
         this.pendingConnections.set(conn.peer, conn);
         this.service.emit('connection-request', { peerId: conn.peer });
 
-        // If it opens while pending, just log it. 
-        // We only transition to "connected" when user accepts.
-        conn.on('open', () => {
+        const openHandler = () => {
             console.log('Pending connection opened from:', conn.peer);
-        });
+        };
 
-        conn.on('close', () => {
+        const closeHandler = () => {
             console.log('Pending connection closed:', conn.peer);
             this.pendingConnections.delete(conn.peer);
             this.service.emit('disconnected', { peerId: conn.peer });
-        });
+            // Cleanup references
+            this.pendingDataHandlers.delete(conn.peer);
+            this.pendingCloseHandlers.delete(conn.peer);
+        };
 
-        conn.on('data', (data) => {
+        const dataHandler = (data: any) => {
             if (data && typeof data === 'object' && (data as any).type === 'handshake') {
                 this.handleHandshake((data as any).payload, conn.peer);
             }
-        });
+        };
+
+        this.pendingDataHandlers.set(conn.peer, dataHandler);
+        this.pendingCloseHandlers.set(conn.peer, closeHandler);
+
+        conn.on('open', openHandler);
+        conn.on('close', closeHandler);
+        conn.on('data', dataHandler);
     }
 
     public accept(targetPeerId: string): void {
         const conn = this.pendingConnections.get(targetPeerId);
         if (conn) {
             this.pendingConnections.delete(targetPeerId);
-            // Clean up temporary listeners from addPending
-            conn.removeAllListeners('data');
-            conn.removeAllListeners('close');
-            conn.removeAllListeners('error');
-            conn.removeAllListeners('open');
+
+            // Targeted cleanup
+            const dataHandler = this.pendingDataHandlers.get(targetPeerId);
+            const closeHandler = this.pendingCloseHandlers.get(targetPeerId);
+
+            if (dataHandler) {
+                conn.off('data', dataHandler);
+                this.pendingDataHandlers.delete(targetPeerId);
+            }
+            if (closeHandler) {
+                conn.off('close', closeHandler);
+                this.pendingCloseHandlers.delete(targetPeerId);
+            }
+
+            conn.off('open', () => { }); // Anonymous, but open likely fired already.
 
             this.setupConnectionEvents(conn, true);
         }
