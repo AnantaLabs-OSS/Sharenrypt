@@ -121,32 +121,141 @@ export const usePeerConnection = () => {
           peerId: data.peerId,
           text: data.text,
           time: Date.now(),
-        }, []);
-
-      const setUsername = useCallback((name: string) => {
-        if (peerServiceRef.current) {
-          peerServiceRef.current.setUsername(name);
-          setUsernameState(name);
-        }
-      }, []);
-
-      return {
-        peerId,
-        username,
-        connections,
-        files,
-        messages,
-        pendingConnections,
-        connectionStatus,
-        connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connectToPeer(id); },
-        sendFile,
-        resumeTransfer,
-        sendTextMessage,
-        disconnectPeer,
-        acceptConnection,
-        rejectConnection,
-        retryConnection,
-        setUsername,
-        markMessageAsRead
-      };
+          status: 'sent'
+        }];
+      });
     };
+
+    const handleMessageRead = (data: { peerId: string; messageId: string }) => {
+      setMessages(prev => prev.map(msg =>
+        msg.id === data.messageId ? { ...msg, status: 'read' } : msg
+      ));
+    };
+
+    // Register event listeners
+    peerServiceInstance.on('ready', handleReady);
+    peerServiceInstance.on('connection', handleConnection);
+    peerServiceInstance.on('disconnection', handleDisconnection);
+    peerServiceInstance.on('connection-request', handleConnectionRequest);
+    peerServiceInstance.on('file-incoming', handleFileIncoming);
+    peerServiceInstance.on('file-outgoing', handleFileOutgoing);
+    peerServiceInstance.on('file-progress', handleFileProgress);
+    peerServiceInstance.on('file-received', handleFileReceived);
+    peerServiceInstance.on('file-sent', handleFileSent);
+    peerServiceInstance.on('message', handleMessage);
+    peerServiceInstance.on('message-read', handleMessageRead);
+
+    // Clean up event listeners on unmount
+    return () => {
+      if (peerServiceInstance) {
+        peerServiceInstance.off('ready', handleReady);
+        peerServiceInstance.off('connection', handleConnection);
+        peerServiceInstance.off('disconnection', handleDisconnection);
+        peerServiceInstance.off('connection-request', handleConnectionRequest);
+        peerServiceInstance.off('file-incoming', handleFileIncoming);
+        peerServiceInstance.off('file-outgoing', handleFileOutgoing);
+        peerServiceInstance.off('file-progress', handleFileProgress);
+        peerServiceInstance.off('file-received', handleFileReceived);
+        peerServiceInstance.off('file-sent', handleFileSent);
+        peerServiceInstance.off('message', handleMessage);
+        peerServiceInstance.off('message-read', handleMessageRead);
+      }
+    };
+  }, []);
+
+  const connectToPeer = useCallback(async (targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
+    setConnectionStatus('connecting');
+    await peerServiceRef.current.connectToPeer(targetPeerId);
+  }, []);
+
+  const acceptConnection = useCallback((targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.acceptConnection(targetPeerId);
+    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+  }, []);
+
+  const rejectConnection = useCallback((targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.rejectConnection(targetPeerId);
+    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+  }, []);
+
+  const disconnectPeer = useCallback((targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
+    peerServiceRef.current.disconnectPeer(targetPeerId);
+  }, []);
+
+  const sendFile = useCallback(async (file: File, targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+
+    await peerServiceRef.current.sendFile(targetPeerId, file);
+  }, []);
+
+  const resumeTransfer = useCallback((targetPeerId: string, file: File, lastOffset: number) => {
+    if (!peerServiceRef.current) return;
+    peerServiceRef.current.resumeTransfer(targetPeerId, file, lastOffset);
+  }, []);
+
+  const sendTextMessage = useCallback((text: string, targetPeerId: string) => {
+    if (!peerServiceRef.current) return;
+    const id = peerServiceRef.current.sendTextMessage(targetPeerId, text);
+    if (id) {
+      setMessages(prev => [...prev, {
+        id,
+        peerId: 'Me',
+        text,
+        self: true,
+        time: Date.now(),
+        status: 'sent'
+      }]);
+    }
+  }, []);
+
+  const markMessageAsRead = useCallback((targetPeerId: string, messageId: string) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.sendReadReceipt(targetPeerId, messageId);
+
+      // Mark locally as read so we don't send receipt again
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId ? { ...msg, status: 'read' } : msg
+      ));
+    }
+  }, []);
+
+  const retryConnection = useCallback((targetPeerId: string) => {
+    setConnectionStatus('idle');
+    if (peerServiceRef.current) peerServiceRef.current.connectToPeer(targetPeerId);
+  }, []);
+
+  const setUsername = useCallback((name: string) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.setUsername(name);
+      setUsernameState(name);
+    }
+  }, []);
+
+  return {
+    peerId,
+    username,
+    connections,
+    files,
+    messages,
+    pendingConnections,
+    connectionStatus,
+    connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connectToPeer(id); },
+    sendFile,
+    resumeTransfer,
+    sendTextMessage,
+    disconnectPeer,
+    acceptConnection,
+    rejectConnection,
+    retryConnection,
+    setUsername,
+    markMessageAsRead
+  };
+};
