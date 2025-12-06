@@ -13,6 +13,7 @@ import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
 import { SoundToggle } from './components/SoundToggle';
 import { Chat } from './components/Chat';
 import { DragDropOverlay } from './components/DragDropOverlay';
+import { analytics } from './utils/analytics';
 
 function App() {
   const {
@@ -42,6 +43,12 @@ function App() {
   // Logic to show welcome dialog: if no username
   const showWelcome = !username;
 
+  // Initialize Analytics
+  React.useEffect(() => {
+    analytics.initialize();
+    analytics.trackPageView('/');
+  }, []);
+
   const handleConnect = useCallback(() => {
     setShowConnectDialog(true);
   }, []);
@@ -49,6 +56,7 @@ function App() {
   const handleConnectSubmit = useCallback(() => {
     if (targetPeerId.trim()) {
       connectToPeer(targetPeerId.trim());
+      analytics.trackEvent('Connection', 'Initiated', 'Manual');
     }
     setShowConnectDialog(false);
   }, [targetPeerId, connectToPeer]);
@@ -58,6 +66,7 @@ function App() {
       const file = event.target.files?.[0];
       if (file && connections.length > 0) {
         sendFile(file, connections[0].id);
+        analytics.trackEvent('File', 'Select', 'Input', file.size);
       }
     },
     [connections, sendFile]
@@ -67,6 +76,7 @@ function App() {
     (file: File) => {
       if (file && connections.length > 0) {
         sendFile(file, connections[0].id);
+        analytics.trackEvent('File', 'Drop', 'Overlay', file.size);
       }
     },
     [connections, sendFile]
