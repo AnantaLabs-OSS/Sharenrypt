@@ -421,19 +421,9 @@ export class PeerService {
       this.emit('error', { error, peerId });
     });
   }
-
   // File Transfer Methods - SECURE implementation
   public async sendFile(targetPeerId: string, file: File): Promise<void> {
     const conn = this.connections.get(targetPeerId);
-
-    console.log(`[PeerService] sendFile -> Target: ${targetPeerId}`);
-    console.log(`[PeerService] Active Connections: ${Array.from(this.connections.keys()).join(', ')}`);
-
-    if (conn) {
-      console.log(`[PeerService] Connection Status - Open: ${conn.open}, Peer: ${conn.peer}, Reliable: ${conn.reliable}`);
-    } else {
-      console.error(`[PeerService] No connection object found for ${targetPeerId}`);
-    }
 
     if (!conn || !conn.open) {
       toast.error('Not connected to peer');

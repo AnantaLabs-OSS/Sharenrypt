@@ -162,7 +162,7 @@ export const usePeerConnection = () => {
   const sendFile = useCallback(async (file: File, targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
-    await peerServiceRef.current.sendFile(file, targetPeerId);
+    await peerServiceRef.current.sendFile(targetPeerId, file);
   }, []);
 
   const retryConnection = useCallback((targetPeerId: string) => {
