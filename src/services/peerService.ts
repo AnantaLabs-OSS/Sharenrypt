@@ -421,7 +421,10 @@ export class PeerService {
       this.emit('error', { error, peerId });
     });
   }
-  // File Transfer Methods - SECURE implementation
+
+
+  // File Transfer Methods - SECURE implementation with Web Worker & Streams
+  // File Transfer Methods - SECURE implementation with Web Worker & Streams
   public async sendFile(targetPeerId: string, file: File): Promise<void> {
     const conn = this.connections.get(targetPeerId);
 
@@ -431,15 +434,15 @@ export class PeerService {
     }
 
     try {
-      // Encrypt file specifically using correct method
-      // Returns { encryptedData, key, iv, transferId }
-      toast.loading('Encrypting file...', { id: 'encrypting' });
-
-      const { encryptedData, key, iv, transferId } = await Encryption.encryptFile(file);
+      // 1. Generate unique key/IV for this file transfer
+      toast.loading('Preparing encryption...', { id: 'encrypting' });
+      const cryptoKey = await Encryption.generateKey();
+      const keyStr = await Encryption.exportKey(cryptoKey);
+      const transferId = nanoid();
 
       toast.dismiss('encrypting');
 
-      // Create transfer object for local display
+      // 2. Initialize Transfer UI
       const transfer: FileTransfer = {
         id: transferId,
         name: file.name,
@@ -448,11 +451,9 @@ export class PeerService {
         progress: 0,
         status: 'pending',
       };
-
       this.emit('transfer-progress', { transfer });
 
-      // Notify peer about incoming file AND encryption keys
-      // Keys are sent over WebRTC data channel which uses DTLS (secure)
+      // 3. Send Metadata (Start Signal) - Send KEY only, IV will be per-chunk
       conn.send({
         type: 'file-start',
         payload: {
@@ -460,45 +461,76 @@ export class PeerService {
           name: file.name,
           size: file.size,
           type: file.type,
-          key, // Exchange the key
-          iv   // Exchange the IV
+          key: keyStr,
+          // No base IV needed if we send per-chunk
         },
       });
 
       toast.loading(`Sending ${file.name}...`, { id: transferId });
 
-      // Send chunks
-      let offset = 0;
+      // 4. Initialize Worker
+      const worker = new Worker(new URL('../workers/encryption.worker.ts', import.meta.url), { type: 'module' });
 
-      while (offset < encryptedData.byteLength) {
-        // Wait if buffer is too full (backpressure)
-        // Note: bufferedAmount property shows bytes queued in the data channel
-        const currentConn = conn as any; // Type assertion needed for bufferedAmount
-        while (currentConn.bufferedAmount && currentConn.bufferedAmount > CHUNK_SIZE * 4) {
-          await new Promise((resolve) => setTimeout(resolve, 10));
+      let offset = 0;
+      const stream = file.stream();
+      const reader = stream.getReader();
+
+      const encryptChunk = (chunk: ArrayBuffer, key: CryptoKey, iv: Uint8Array): Promise<ArrayBuffer> => {
+        return new Promise((resolve, reject) => {
+          const handler = (e: MessageEvent) => {
+            if (e.data.type === 'encrypt-success') {
+              worker.removeEventListener('message', handler);
+              resolve(e.data.payload.encrypted);
+            } else if (e.data.type === 'error') {
+              worker.removeEventListener('message', handler);
+              reject(e.data.payload.error);
+            }
+          };
+          worker.addEventListener('message', handler);
+          worker.postMessage({ type: 'encrypt', payload: { chunk, key, iv } });
+        });
+      };
+
+      // 5. Stream & Encrypt & Send Loop
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const currentConn = conn as any;
+        while (currentConn.bufferedAmount > 1024 * 1024) {
+          await new Promise(r => setTimeout(r, 10));
         }
 
-        const chunk = encryptedData.slice(offset, offset + CHUNK_SIZE);
+        // Generate unique IV for this chunk
+        const chunkIv = window.crypto.getRandomValues(new Uint8Array(12));
 
+        // Encrypt in worker
+        const encryptedChunk = await encryptChunk(value.buffer, cryptoKey, chunkIv);
+
+        // Send chunk + its IV
         conn.send({
           type: 'file-chunk',
           payload: {
             id: transferId,
-            chunk,
+            chunk: encryptedChunk,
+            iv: btoa(String.fromCharCode(...chunkIv)), // Send IV as string
             offset,
-            totalSize: encryptedData.byteLength,
+            totalSize: file.size,
           },
         });
 
-        offset += chunk.byteLength;
-        const progress = Math.round((offset / encryptedData.byteLength) * 100);
+        offset += value.length;
+        // Use offset for progress (approximate, since encrypted size is slightly larger due to tags)
+        const progress = Math.round((offset / file.size) * 100);
 
         this.emit('transfer-progress', {
-          transfer: { ...transfer, progress, status: 'encrypting' }, // status used for transfer display
+          transfer: { ...transfer, progress, status: 'encrypting' },
         });
       }
 
-      // Notify completion
+      worker.terminate();
+
+      // 6. Finish
       conn.send({
         type: 'file-complete',
         payload: { id: transferId },
@@ -551,56 +583,71 @@ export class PeerService {
     }
   }
 
-  private handleFileStart(metadata: any): void {
-    // metadata: { id, name, size, type, key, iv }
-    const transfer: FileTransfer = {
-      id: metadata.id,
-      name: metadata.name,
-      size: metadata.size,
-      type: metadata.type,
-      progress: 0,
-      status: 'pending',
-    };
+  private async handleFileStart(metadata: any): Promise<void> {
+    // metadata: { id, name, size, type, key, iv } (iv is ignored or used as salt if complex)
 
-    // Store for tracking chunks AND keys
-    this.incomingTransfers.set(metadata.id, {
-      ...metadata,
-      chunks: [],
-      receivedSize: 0,
-      // Store key and IV for decryption later
-      key: metadata.key,
-      iv: metadata.iv,
-    });
+    try {
+      const cryptoKey = await Encryption.importKey(metadata.key);
 
-    toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
-    this.emit('incoming-transfer', { transfer });
+      const transfer: FileTransfer = {
+        id: metadata.id,
+        name: metadata.name,
+        size: metadata.size,
+        type: metadata.type,
+        progress: 0,
+        status: 'pending',
+      };
+
+      // Store for tracking chunks AND keys
+      this.incomingTransfers.set(metadata.id, {
+        ...metadata,
+        chunks: [],
+        receivedSize: 0,
+        cryptoKey, // Store the imported key object for fast chunk decryption
+      });
+
+      toast.loading(`Receiving ${metadata.name}...`, { id: metadata.id });
+      this.emit('incoming-transfer', { transfer });
+    } catch (e) {
+      console.error("Failed to start file transfer:", e);
+    }
   }
 
-  private handleFileChunk(data: any): void {
-    // data: { id, chunk, offset, totalSize }
+  private async handleFileChunk(data: any): Promise<void> {
+    // data: { id, chunk, iv, offset, totalSize }
     const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer) return;
+    if (!transfer || !transfer.cryptoKey) return;
 
-    transfer.chunks.push({
-      data: data.chunk,
-      offset: data.offset,
-    });
+    try {
+      // Decrypt immediately
+      const iv = Uint8Array.from(atob(data.iv), c => c.charCodeAt(0));
+      const decryptedChunk = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        transfer.cryptoKey,
+        data.chunk
+      );
 
-    // Sort chunks sometimes if needed, or just append
-    // For reliable channels, order is guaranteed usually
+      transfer.chunks.push({
+        data: decryptedChunk,
+        offset: data.offset,
+      });
 
-    const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
+      const progress = Math.round(((data.offset + data.chunk.byteLength) / data.totalSize) * 100);
 
-    this.emit('transfer-progress', {
-      transfer: {
-        id: transfer.id,
-        name: transfer.name,
-        size: transfer.size,
-        type: transfer.type,
-        progress,
-        status: 'downloading',
-      },
-    });
+      this.emit('transfer-progress', {
+        transfer: {
+          id: transfer.id,
+          name: transfer.name,
+          size: transfer.size,
+          type: transfer.type,
+          progress,
+          status: 'downloading',
+        },
+      });
+    } catch (e) {
+      console.error("Chunk decryption failed", e);
+      // Could request retry here
+    }
   }
 
   private async handleFileComplete(data: any): Promise<void> {
@@ -608,9 +655,9 @@ export class PeerService {
     if (!transfer) return;
 
     try {
-      toast.loading(`Decrypting ${transfer.name}...`, { id: data.id });
+      toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
 
-      // Reassemble
+      // Reassemble already-decrypted chunks
       transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
 
       const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
@@ -622,15 +669,8 @@ export class PeerService {
         offset += chunk.data.byteLength;
       }
 
-      // Decrypt using received key/IV
-      if (!transfer.key || !transfer.iv) {
-        throw new Error("Missing encryption keys for file");
-      }
-
-      const decryptedBuffer = await Encryption.decryptFile(combined.buffer, transfer.key, transfer.iv);
-
-      // Create download
-      const blob = new Blob([decryptedBuffer], { type: transfer.type });
+      // Create download directly
+      const blob = new Blob([combined.buffer], { type: transfer.type });
       const url = URL.createObjectURL(blob);
 
       const a = document.createElement('a');
@@ -643,7 +683,7 @@ export class PeerService {
       // Clean up
       this.incomingTransfers.delete(data.id);
 
-      toast.dismiss(data.transferId); // Use data.id if transferId not in payload, but usually it is id
+      toast.dismiss(data.transferId);
       toast.dismiss(data.id);
 
       toast.success('File received!');
@@ -661,9 +701,9 @@ export class PeerService {
       this.emit('transfer-completed', { transfer: fileTransfer });
 
     } catch (error) {
-      console.error('Decryption error:', error);
+      console.error('Finalization error:', error);
       toast.dismiss(data.id);
-      toast.error('Failed to decrypt file');
+      toast.error('Failed to save file');
     }
   }
 

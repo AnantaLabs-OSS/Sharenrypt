@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 
 export class Encryption {
-  private static async generateKey(): Promise<CryptoKey> {
+  public static async generateKey(): Promise<CryptoKey> {
     return await window.crypto.subtle.generateKey(
       {
         name: 'AES-GCM',
@@ -12,12 +12,12 @@ export class Encryption {
     );
   }
 
-  private static async exportKey(key: CryptoKey): Promise<string> {
+  public static async exportKey(key: CryptoKey): Promise<string> {
     const exported = await window.crypto.subtle.exportKey('raw', key);
     return btoa(String.fromCharCode(...new Uint8Array(exported)));
   }
 
-  private static async importKey(keyString: string): Promise<CryptoKey> {
+  public static async importKey(keyString: string): Promise<CryptoKey> {
     const keyData = Uint8Array.from(atob(keyString), c => c.charCodeAt(0));
     return await window.crypto.subtle.importKey(
       'raw',
@@ -28,8 +28,8 @@ export class Encryption {
     );
   }
 
-  static async encryptFile(file: File): Promise<{ 
-    encryptedData: ArrayBuffer; 
+  static async encryptFile(file: File): Promise<{
+    encryptedData: ArrayBuffer;
     key: string;
     iv: string;
     transferId: string;
