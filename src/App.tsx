@@ -12,6 +12,7 @@ import { ConnectionDialog } from './components/ConnectionDialog';
 import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
 import { SoundToggle } from './components/SoundToggle';
 import { Chat } from './components/Chat';
+import { DragDropOverlay } from './components/DragDropOverlay';
 
 function App() {
   const {
@@ -37,7 +38,6 @@ function App() {
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
-  const [activeTab, setActiveTab] = useState<'files' | 'chat'>('files');
 
   // Logic to show welcome dialog: if no username
   const showWelcome = !username;
@@ -56,6 +56,15 @@ function App() {
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
+      if (file && connections.length > 0) {
+        sendFile(file, connections[0].id);
+      }
+    },
+    [connections, sendFile]
+  );
+
+  const handleFileDrop = useCallback(
+    (file: File) => {
       if (file && connections.length > 0) {
         sendFile(file, connections[0].id);
       }
@@ -110,6 +119,8 @@ function App() {
           />
         ))}
       </AnimatePresence>
+
+      <DragDropOverlay onFileDrop={handleFileDrop} isConnect={connections.length > 0} />
 
       <AnimatePresence>
         {showConnectDialog && (
