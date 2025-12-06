@@ -5,6 +5,7 @@ import { FileTransfer } from '../types';
 import { File, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ProgressBar } from './ProgressBar';
+import { formatBytes, formatDuration } from '../utils/formatters';
 
 interface FileListProps {
   files: FileTransfer[];
@@ -23,13 +24,6 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
       default:
         return null;
     }
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   };
 
   return (
@@ -54,15 +48,15 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
                   {getStatusIcon(file.status)}
                 </div>
 
-                <p className="text-xs text-slate-400 mb-2">{formatSize(file.size)}</p>
+                <p className="text-xs text-slate-400 mb-2">{formatBytes(file.size)}</p>
 
                 {['transferring', 'downloading', 'encrypting'].includes(file.status) ? (
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs text-cyan-300 font-mono">
                       <span>{file.progress}%</span>
                       <span>
-                        {file.speed ? `${formatSize(file.speed)}/s` : ''}
-                        {file.eta ? ` • ${Math.ceil(file.eta)}s` : ''}
+                        {file.speed ? `${formatBytes(file.speed)}/s` : ''}
+                        {file.eta ? ` • ETA: ${formatDuration(file.eta)}` : ''}
                       </span>
                     </div>
                     <ProgressBar
