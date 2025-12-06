@@ -2,10 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import QrScanner from 'qr-scanner';
-// Explicitly bundle the worker
-import qrScannerWorkerUrl from 'qr-scanner/qr-scanner-worker.min.js?url';
-
-QrScanner.WORKER_PATH = qrScannerWorkerUrl;
 
 interface QRScannerProps {
   onScan: (peerId: string) => void;
@@ -22,11 +18,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
   const scannerRef = useRef<QrScanner | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeScanner = async () => {
       try {
+        if (!mounted) return;
         setIsLoading(true);
         setError('');
+
         const hasPermissions = await QrScanner.hasCamera();
+        if (!mounted) return;
+
         if (!hasPermissions) {
           setPermissionDenied(true);
           setError('No camera found or permission denied');
@@ -36,9 +38,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
 
         if (!videoRef.current) return;
 
+        // Cleanup existing instance if any (double-safety)
+        if (scannerRef.current) {
+          scannerRef.current.destroy();
+        }
+
         scannerRef.current = new QrScanner(
           videoRef.current,
-          (result) => { if (result.data) onScan(result.data); },
+          (result) => { if (mounted && result.data) onScan(result.data); },
           {
             returnDetailedScanResult: true,
             highlightScanRegion: true,
@@ -48,19 +55,34 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         );
 
         const hasFlashAvailable = await scannerRef.current.hasFlash();
+        if (!mounted) {
+          scannerRef.current.destroy();
+          return;
+        }
         setHasFlash(hasFlashAvailable);
+
         await scannerRef.current.start();
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
+
       } catch (err) {
         console.error('Scanner error:', err);
-        setError('Failed to initialize camera.');
-        setIsLoading(false);
-        setPermissionDenied(true);
+        if (mounted) {
+          setError('Failed to initialize camera.');
+          setIsLoading(false);
+          setPermissionDenied(true);
+        }
       }
     };
 
     initializeScanner();
-    return () => { scannerRef.current?.destroy(); };
+
+    return () => {
+      mounted = false;
+      if (scannerRef.current) {
+        scannerRef.current.destroy();
+        scannerRef.current = null;
+      }
+    };
   }, [onScan]);
 
   const handleRetry = async () => {
