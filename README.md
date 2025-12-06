@@ -18,6 +18,8 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 ✅ **Unlimited File Sizes** - Streaming Support (FileSystem Access API) 🚀  
 ✅ **Transfer Resumability** - Auto-resume interrupted transfers 🔄  
 ✅ **Wake Lock Integration** - Prevents device sleep during transfers 🔋  
+✅ **Progressive Web App (PWA)** - Installable & Offline Support 📱  
+✅ **Rich Chat** - Usernames, Read Receipts (✓✓), and Emoji Support 💬  
 ✅ **End-to-End Encryption** - DTLS + AES-GCM 256-bit encryption  
 ✅ **100% FREE** - No server costs, uses free cloud services  
 ✅ **Global Reach** - Works worldwide with STUN/TURN support  

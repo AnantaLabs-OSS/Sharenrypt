@@ -10,6 +10,7 @@ import { QRScanner } from './components/QRScanner';
 import { ConnectionRequest } from './components/ConnectionRequest';
 import { ConnectionDialog } from './components/ConnectionDialog';
 import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
+import { SoundToggle } from './components/SoundToggle';
 import { Chat } from './components/Chat';
 
 function App() {
@@ -149,6 +150,10 @@ function App() {
                 Secure P2P File Sharing
                 {username && <span className="text-cyan-400 font-mono ml-2">[{username}]</span>}
               </p>
+            </div>
+
+            <div className="ml-4">
+              <SoundToggle />
             </div>
           </div>
 

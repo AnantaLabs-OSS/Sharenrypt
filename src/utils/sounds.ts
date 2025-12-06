@@ -1,4 +1,21 @@
+const STORAGE_KEY = 'sharencrypt_sound_enabled';
+
+export const isSoundEnabled = (): boolean => {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored !== null) {
+    return stored === 'true';
+  }
+  // Default to true if env var is missing or 'true'
+  return import.meta.env.VITE_ENABLE_SOUND !== 'false';
+};
+
+export const setSoundEnabled = (enabled: boolean) => {
+  localStorage.setItem(STORAGE_KEY, String(enabled));
+};
+
 export const playSound = (type: 'success' | 'error' | 'notification') => {
+  if (!isSoundEnabled()) return;
+
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
