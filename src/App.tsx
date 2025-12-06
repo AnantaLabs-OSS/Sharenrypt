@@ -99,12 +99,13 @@ function App() {
       </div>
 
       <AnimatePresence>
-        {pendingConnections.map((pendingPeerId) => (
+        {pendingConnections.map((request) => (
           <ConnectionRequest
-            key={pendingPeerId}
-            peerId={pendingPeerId}
-            onAccept={() => acceptConnection(pendingPeerId)}
-            onReject={() => rejectConnection(pendingPeerId)}
+            key={request.id}
+            peerId={request.id}
+            username={request.username}
+            onAccept={() => acceptConnection(request.id)}
+            onReject={() => rejectConnection(request.id)}
           />
         ))}
       </AnimatePresence>

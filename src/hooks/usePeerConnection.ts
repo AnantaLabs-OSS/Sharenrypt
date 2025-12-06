@@ -10,7 +10,7 @@ export const usePeerConnection = () => {
   const [username, setUsernameState] = useState<string>('');
   const [connections, setConnections] = useState<PeerConnection[]>([]);
   const [files, setFiles] = useState<FileTransfer[]>([]);
-  const [pendingConnections, setPendingConnections] = useState<string[]>([]);
+  const [pendingConnections, setPendingConnections] = useState<{ id: string; username?: string }[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
   const [messages, setMessages] = useState<{ id: string; peerId: string; text: string; self?: boolean; time: number; status: 'sent' | 'delivered' | 'read' }[]>([]);
 
@@ -62,10 +62,10 @@ export const usePeerConnection = () => {
       setConnections(prev => prev.filter(conn => conn.id !== data.peerId));
     };
 
-    const handleConnectionRequest = (data: { peerId: string }) => {
+    const handleConnectionRequest = (data: { peerId: string; username?: string }) => {
       setPendingConnections(prev => {
-        if (!prev.includes(data.peerId)) {
-          return [...prev, data.peerId];
+        if (!prev.find(p => p.id === data.peerId)) {
+          return [...prev, { id: data.peerId, username: data.username }];
         }
         return prev;
       });
@@ -174,14 +174,14 @@ export const usePeerConnection = () => {
     if (!peerServiceRef.current) return;
 
     peerServiceRef.current.acceptConnection(targetPeerId);
-    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+    setPendingConnections(prev => prev.filter(p => p.id !== targetPeerId));
   }, []);
 
   const rejectConnection = useCallback((targetPeerId: string) => {
     if (!peerServiceRef.current) return;
 
     peerServiceRef.current.rejectConnection(targetPeerId);
-    setPendingConnections(prev => prev.filter(id => id !== targetPeerId));
+    setPendingConnections(prev => prev.filter(p => p.id !== targetPeerId));
   }, []);
 
   const disconnectPeer = useCallback((targetPeerId: string) => {

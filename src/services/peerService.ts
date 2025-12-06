@@ -98,7 +98,14 @@ export class PeerService {
 
       // Store the connection object for later acceptance
       this.pendingConnections.set(conn.peer, conn);
-      this.emit('connection-request', { peerId: conn.peer });
+
+      // Extract username from metadata if available
+      const username = conn.metadata?.username;
+
+      this.emit('connection-request', {
+        peerId: conn.peer,
+        username
+      });
 
       // Setup basic handlers but don't fully activate yet
       conn.on('open', () => {
@@ -283,6 +290,9 @@ export class PeerService {
       const conn = this.peer.connect(targetPeerId, {
         reliable: true, // Ordered, reliable delivery
         serialization: 'binary', // Binary data for files
+        metadata: {
+          username: this.username // Pass username to peer
+        }
       });
 
       return new Promise((resolve) => {
