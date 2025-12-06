@@ -189,9 +189,19 @@ export class PeerService implements ConnectionEvents, FileHandlerEvents {
 
   public sendTextMessage(targetPeerId: string, text: string): void {
     const conn = this.connectionManager.getConnection(targetPeerId);
-    if (conn && conn.open) {
-      conn.send({ type: 'text-message', payload: text });
+    if (!conn) {
+      console.error('sendTextMessage: Connection not found for', targetPeerId);
+      toast.error('Connection not found');
+      return;
     }
+    if (!conn.open) {
+      console.error('sendTextMessage: Connection is closed for', targetPeerId);
+      toast.error('Connection closed');
+      return;
+    }
+
+    console.log('Sending message to:', targetPeerId, text);
+    conn.send({ type: 'text-message', payload: text });
   }
 
   // --- Queue Delegation ---

@@ -87,6 +87,12 @@ export class ConnectionManager {
         const conn = this.pendingConnections.get(targetPeerId);
         if (conn) {
             this.pendingConnections.delete(targetPeerId);
+            // Clean up temporary listeners from addPending
+            conn.removeAllListeners('data');
+            conn.removeAllListeners('close');
+            conn.removeAllListeners('error');
+            conn.removeAllListeners('open');
+
             this.setupConnectionEvents(conn, true);
         }
     }
@@ -130,6 +136,7 @@ export class ConnectionManager {
         }
 
         conn.on('data', (data) => {
+            console.log('Data received from:', conn.peer, data);
             this.service.handleIncomingData(data, conn.peer);
         });
 
