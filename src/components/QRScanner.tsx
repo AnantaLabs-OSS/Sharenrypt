@@ -2,6 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import QrScanner from 'qr-scanner';
+// Explicitly bundle the worker
+import qrScannerWorkerUrl from 'qr-scanner/qr-scanner-worker.min.js?url';
+
+QrScanner.WORKER_PATH = qrScannerWorkerUrl;
 
 interface QRScannerProps {
   onScan: (peerId: string) => void;
