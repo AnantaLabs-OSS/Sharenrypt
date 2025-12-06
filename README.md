@@ -15,6 +15,9 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 ✅ **Cosmic Glass UI** - Stunning dark mode with glassmorphism and neon accents  
 ✅ **Smart Acknowledgement** - "Finalizing" status ensures both sides confirm transfer  
 ✅ **True Peer-to-Peer** - Direct browser-to-browser file transfers using WebRTC  
+✅ **Unlimited File Sizes** - Streaming Support (FileSystem Access API) 🚀  
+✅ **Transfer Resumability** - Auto-resume interrupted transfers 🔄  
+✅ **Wake Lock Integration** - Prevents device sleep during transfers 🔋  
 ✅ **End-to-End Encryption** - DTLS + AES-GCM 256-bit encryption  
 ✅ **100% FREE** - No server costs, uses free cloud services  
 ✅ **Global Reach** - Works worldwide with STUN/TURN support  
@@ -406,7 +409,7 @@ While Sharencrypt is powerful, be aware of:
 
 - ❗ **Requires Active Browser** - Both peers must keep browser open during transfer
 - ❗ **No Offline Transfer** - Can't send to offline peers (use cloud storage for async)
-- ❗ **File Size Limit** - Browser memory constraints (default 1GB, configurable)
+- ❗ **File Size Limit** - Streaming supported (no memory limit), but configurable limit enforced (default 1GB)
 - ❗ **Network Dependent** - Speed limited by slowest peer's connection
 
 ---

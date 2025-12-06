@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MessageSquare, X, Minus, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, X, Minus, Trash2, Check, CheckCheck } from 'lucide-react';
 
 interface ChatProps {
-    messages: { peerId: string; text: string; self?: boolean; time: number }[];
+    messages: { id: string; peerId: string; text: string; self?: boolean; time: number; status?: 'sent' | 'delivered' | 'read' }[];
+    connections: { id: string; username?: string }[];
     onSendMessage: (text: string) => void;
+    onMarkAsRead?: (peerId: string, messageId: string) => void;
     isOpen: boolean;
     onClose: () => void;
     onClear: () => void;
 }
 
-export const Chat: React.FC<ChatProps> = ({ messages, onSendMessage, isOpen, onClose, onClear }) => {
+export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage, onMarkAsRead, isOpen, onClose, onClear }) => {
     const [inputText, setInputText] = useState('');
     const [isMinimized, setIsMinimized] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -22,6 +24,17 @@ export const Chat: React.FC<ChatProps> = ({ messages, onSendMessage, isOpen, onC
     useEffect(() => {
         scrollToBottom();
     }, [messages, isOpen, isMinimized]);
+
+    // Effect to mark messages as read when chat is open
+    useEffect(() => {
+        if (isOpen && !isMinimized && onMarkAsRead) {
+            messages.forEach(msg => {
+                if (!msg.self && msg.status !== 'read') {
+                    onMarkAsRead(msg.peerId, msg.id);
+                }
+            });
+        }
+    }, [messages, isOpen, isMinimized, onMarkAsRead]);
 
     const handleSend = (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -39,8 +52,8 @@ export const Chat: React.FC<ChatProps> = ({ messages, onSendMessage, isOpen, onC
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className={`fixed z-40 transition-all duration-300 ${isMinimized
-                    ? 'bottom-4 right-4 w-72 h-14'
-                    : 'bottom-4 right-4 w-80 sm:w-96 h-[500px]'
+                ? 'bottom-4 right-4 w-72 h-14'
+                : 'bottom-4 right-4 w-80 sm:w-96 h-[500px]'
                 }`}
         >
             <div className="glass-panel w-full h-full flex flex-col rounded-t-xl overflow-hidden shadow-2xl border border-white/10">
@@ -89,15 +102,32 @@ export const Chat: React.FC<ChatProps> = ({ messages, onSendMessage, isOpen, onC
                                     >
                                         <div
                                             className={`max-w-[85%] px-4 py-2 rounded-2xl text-sm ${msg.self
-                                                    ? 'bg-cyan-600/80 text-white rounded-tr-sm shadow-lg shadow-cyan-500/10'
-                                                    : 'bg-slate-700/50 text-slate-200 rounded-tl-sm border border-slate-600/50'
+                                                ? 'bg-cyan-600/80 text-white rounded-tr-sm shadow-lg shadow-cyan-500/10'
+                                                : 'bg-slate-700/50 text-slate-200 rounded-tl-sm border border-slate-600/50'
                                                 }`}
                                         >
+                                            {!msg.self && (
+                                                <div className="text-[10px] text-cyan-400 mb-1 font-bold">
+                                                    {connections.find(c => c.id === msg.peerId)?.username || msg.peerId.substring(0, 8)}
+                                                </div>
+                                            )}
                                             {msg.text}
+
+                                            <div className={`flex items-center justify-end space-x-1 mt-1 ${msg.self ? 'text-cyan-100/70' : 'text-slate-400'}`}>
+                                                <span className="text-[10px]">
+                                                    {new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                {msg.self && (
+                                                    <span className="" title={msg.status}>
+                                                        {msg.status === 'read' ? (
+                                                            <CheckCheck className="w-3 h-3 text-cyan-300" />
+                                                        ) : (
+                                                            <Check className="w-3 h-3 text-white/50" />
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <span className="text-[10px] text-slate-500 mt-1 px-1">
-                                            {new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
                                     </motion.div>
                                 ))
                             )}

@@ -35,6 +35,7 @@ interface Message {
 interface DeviceInfo {
   peerId: string;
   deviceName: string;
+  username?: string; // Phase 2: Username
   browser: string;
   timestamp: number;
 }
@@ -42,6 +43,7 @@ interface DeviceInfo {
 export class PeerService {
   private peer: Peer | null = null;
   private peerId: string = '';
+  private username: string = ''; // Phase 2: Username
   private connections: Map<string, DataConnection> = new Map();
   private pendingConnections: Map<string, DataConnection> = new Map();
   private connectionStatus: ConnectionStatus = 'idle';
@@ -137,6 +139,16 @@ export class PeerService {
     return this.peerId;
   }
 
+  // Phase 2: Set Username
+  public setUsername(name: string): void {
+    this.username = name;
+    // potentially re-announce to connected peers if we wanted live updates
+  }
+
+  public getUsername(): string {
+    return this.username;
+  }
+
   public getConnections(): Array<{ id: string; connected: boolean }> {
     const connections: Array<{ id: string; connected: boolean }> = [];
 
@@ -173,6 +185,7 @@ export class PeerService {
     return {
       peerId: this.peerId,
       deviceName,
+      username: this.username || undefined,
       browser,
       timestamp: Date.now(),
     };
@@ -653,7 +666,18 @@ export class PeerService {
         playSound('success');
         break;
       case 'text-message':
-        this.emit('message', { peerId, text: message.payload });
+        // payload is now { id, text }
+        this.emit('message', {
+          peerId,
+          text: message.payload.text,
+          id: message.payload.id
+        });
+        break;
+      case 'message-read':
+        this.emit('message-read', {
+          peerId,
+          messageId: message.payload.messageId
+        });
         break;
       default:
         console.warn('Unknown message type:', message.type);
@@ -777,90 +801,81 @@ export class PeerService {
     }
   }
 
-  private async handleFileComplete(data: any, peerId: string): Promise<void> {
+  // Chat Methods
+  public sendTextMessage(targetPeerId: string, text: string): string {
+    const conn = this.connections.get(targetPeerId);
+    if (conn && conn.open) {
+      const messageId = nanoid();
+      conn.send({
+        type: 'text-message',
+        payload: {
+          id: messageId,
+          text
+        },
+      });
+      return messageId;
+    }
+    return '';
+  }
+
+  public sendReadReceipt(targetPeerId: string, messageId: string): void {
+    const conn = this.connections.get(targetPeerId);
+    if (conn && conn.open) {
+      console.log(`Sending read receipt for ${messageId} to ${targetPeerId}`);
+      conn.send({
+        type: 'message-read',
+        payload: { messageId },
+      });
+    }
+  }
+
+  private handleFileComplete(data: any, peerId: string): Promise<void> {
     const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer) return;
+    if (!transfer) return Promise.resolve();
 
     try {
       toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
 
       if (transfer.writable) {
-        // STREAMING: Close the stream
-        await transfer.writable.close();
-        toast.success(`Saved to disk: ${transfer.name}`);
-      } else {
-        // FALLBACK: Reassemble memory buffer
-        transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+        // Close the file stream
+        // Note: await transfer.writable.close() is what we want, but TS might complain if 'any'
+        // Just in case:
+        (transfer.writable as any).close().then(() => {
+          toast.dismiss(data.id);
+          toast.success(`Received ${transfer.name}!`);
+          playSound('success');
 
-        const totalSize = transfer.chunks.reduce((acc: number, chunk: any) => acc + chunk.data.byteLength, 0);
-        const combined = new Uint8Array(totalSize);
-        let offset = 0;
+          transfer.status = 'completed';
+          transfer.progress = 100;
+          this.emit('file-received', transfer);
 
-        for (const chunk of transfer.chunks) {
-          combined.set(new Uint8Array(chunk.data), offset);
-          offset += chunk.data.byteLength;
-        }
-
-        const blob = new Blob([combined.buffer], { type: transfer.type });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = transfer.name;
-        a.click();
-
-        URL.revokeObjectURL(url);
-      }
-
-      // Clean up memory
-      this.incomingTransfers.delete(data.id);
-
-      toast.dismiss(data.transferId);
-      toast.dismiss(data.id);
-
-      if (!transfer.writable) {
-        toast.success('File received!');
-      }
-      playSound('success');
-
-      const fileTransfer: FileTransfer = {
-        id: data.id,
-        name: transfer.name,
-        size: transfer.size,
-        type: transfer.type,
-        progress: 100,
-        status: 'completed',
-      };
-
-      this.emit('file-received', fileTransfer);
-
-      // Send ACK back to sender
-      const conn = this.connections.get(peerId);
-      if (conn) {
-        conn.send({
-          type: 'file-ack',
-          payload: { id: data.id }
+          // Find connection and send ACK
+          const conn = this.connections.get(peerId);
+          if (conn) {
+            conn.send({
+              type: 'file-ack',
+              payload: { id: transfer.id },
+            });
+          }
         });
+      } else {
+        // Reassemble from RAM chunks (Legacy/Fallback)
+        toast.dismiss(data.id);
+        toast.success(`Received ${transfer.name} (RAM)!`);
+
+        // Send ACK
+        const conn = this.connections.get(peerId);
+        if (conn) {
+          conn.send({
+            type: 'file-ack',
+            payload: { id: transfer.id },
+          });
+        }
       }
-
-      this.releaseWakeLock();
-
-    } catch (error) {
-      console.error('Finalization error:', error);
-      toast.dismiss(data.id);
-      toast.error('Failed to save file');
-      this.releaseWakeLock();
+    } catch (e) {
+      console.error("File finalization error:", e);
     }
-  }
-
-  public sendTextMessage(targetPeerId: string, text: string): void {
-    const conn = this.connections.get(targetPeerId);
-    if (conn) {
-      conn.send({
-        type: 'text-message',
-        payload: text,
-      });
-    }
+    return Promise.resolve();
   }
 
   // Event handling

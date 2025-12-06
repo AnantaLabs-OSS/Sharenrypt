@@ -15,5 +15,6 @@ export interface FileTransfer {
 
 export interface PeerConnection {
   id: string;
+  username?: string;
   connected: boolean;
 }

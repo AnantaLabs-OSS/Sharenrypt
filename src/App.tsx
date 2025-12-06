@@ -9,6 +9,7 @@ import { FileList } from './components/FileList';
 import { QRScanner } from './components/QRScanner';
 import { ConnectionRequest } from './components/ConnectionRequest';
 import { ConnectionDialog } from './components/ConnectionDialog';
+import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
 import { Chat } from './components/Chat';
 
 function App() {
@@ -25,7 +26,9 @@ function App() {
     disconnectPeer,
     acceptConnection,
     rejectConnection,
-    retryConnection
+    retryConnection,
+    username,
+    setUsername
   } = usePeerConnection();
 
   const [showQR, setShowQR] = useState(false);
@@ -33,6 +36,10 @@ function App() {
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
+  const [activeTab, setActiveTab] = useState<'files' | 'chat'>('files');
+
+  // Logic to show welcome dialog: if no username
+  const showWelcome = !username;
 
   const handleConnect = useCallback(() => {
     setShowConnectDialog(true);
@@ -115,6 +122,12 @@ function App() {
         )}
       </AnimatePresence>
 
+      {/* Phase 2: Welcome Dialog */}
+      <WelcomeDialog
+        isOpen={showWelcome}
+        onSubmit={setUsername}
+      />
+
       <div className="relative z-10 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col min-h-screen pb-20">
         {/* Header Section */}
         <motion.div
@@ -133,6 +146,7 @@ function App() {
               <p className="text-slate-400 text-sm flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 Secure P2P File Sharing
+                {username && <span className="text-cyan-400 font-mono ml-2">[{username}]</span>}
               </p>
             </div>
           </div>
@@ -244,10 +258,17 @@ function App() {
                         className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors flex items-center justify-between group"
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-900 font-bold text-xs">
-                            {connection.id.substring(0, 2).toUpperCase()}
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-slate-900 font-bold text-xs shrink-0">
+                            {(connection.username || connection.id).substring(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-sm text-slate-300 font-mono truncate">{connection.id.substring(0, 12)}...</span>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-sm text-slate-200 font-medium truncate">
+                              {connection.username || 'Anonymous Peer'}
+                            </span>
+                            <span className="text-xs text-slate-500 font-mono truncate">
+                              {connection.id.substring(0, 12)}...
+                            </span>
+                          </div>
                         </div>
                         <motion.button
                           whileHover={{ scale: 1.1 }}
@@ -321,6 +342,7 @@ function App() {
         {showChat && (
           <Chat
             messages={messages}
+            connections={connections}
             onSendMessage={handleSendMessage}
             isOpen={showChat}
             onClose={() => setShowChat(false)}
