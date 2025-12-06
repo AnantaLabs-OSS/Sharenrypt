@@ -117,7 +117,7 @@ export const usePeerConnection = () => {
 
     // Register event listeners
     peerServiceInstance.on('ready', handleReady);
-    peerServiceInstance.on('connection', handleConnection);
+    peerServiceInstance.on('connected', handleConnection);
     peerServiceInstance.on('disconnection', handleDisconnection);
     peerServiceInstance.on('connection-request', handleConnectionRequest);
     peerServiceInstance.on('file-incoming', handleFileIncoming);
@@ -135,7 +135,7 @@ export const usePeerConnection = () => {
     // Clean up event listeners on unmount
     return () => {
       peerServiceInstance.off('ready', handleReady);
-      peerServiceInstance.off('connection', handleConnection);
+      peerServiceInstance.off('connected', handleConnection);
       peerServiceInstance.off('disconnection', handleDisconnection);
       peerServiceInstance.off('connection-request', handleConnectionRequest);
       peerServiceInstance.off('file-incoming', handleFileIncoming);
