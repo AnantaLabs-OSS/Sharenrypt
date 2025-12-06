@@ -10,6 +10,7 @@ const CHUNK_SIZE = Number(import.meta.env.VITE_CHUNK_SIZE) || 16384; // 16KB chu
 // const MAX_FILE_SIZE = Number(import.meta.env.VITE_MAX_FILE_SIZE) || 1073741824; // 1GB (Unused but good for ref)
 
 // WebRTC ICE configuration
+// WebRTC ICE configuration
 const ICE_SERVERS = [
   { urls: import.meta.env.VITE_STUN_SERVER_1 },
   { urls: import.meta.env.VITE_STUN_SERVER_2 },
@@ -19,7 +20,7 @@ const ICE_SERVERS = [
     username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
     credential: import.meta.env.VITE_TURN_CREDENTIAL || 'openrelayproject',
   },
-];
+].filter(server => server.urls); // Filter out undefined/empty urls to prevent "Malformed RTCIceServer"
 
 // Connection status types
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'failed';
