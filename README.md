@@ -29,6 +29,10 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 ✅ **Progress Tracking** - Real-time percentage, speed, and ETA  
 ✅ **Multiple Peers** - Connect to multiple people simultaneously  
 ✅ **No Signup Required** - Just open and share!  
+✅ **Drag & Drop** - Drag files anywhere to share instantly 📂  
+✅ **Progress Visualizations** - Real-time speed (MB/s) and ETA ⏱️  
+✅ **Privacy-First Analytics** - Opt-in tracking for usage stats (configurable) 📊  
+✅ **Sound Controls** - Toggleable notification sounds 🔊
 
 ---
 
@@ -301,6 +305,9 @@ VITE_TURN_CREDENTIAL=openrelayproject
 # App Settings
 VITE_MAX_FILE_SIZE=1073741824  # 1GB
 VITE_CHUNK_SIZE=16384          # 16KB
+VITE_ENABLE_ANALYTICS=false    # Opt-in Analytics
+VITE_ENABLE_SOUND=true         # Toggle Sounds
+
 ```
 
 **Everything works out of the box - no configuration needed!** ✅
