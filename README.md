@@ -12,6 +12,8 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 
 ## ✨ Features
 
+✅ **Cosmic Glass UI** - Stunning dark mode with glassmorphism and neon accents  
+✅ **Smart Acknowledgement** - "Finalizing" status ensures both sides confirm transfer  
 ✅ **True Peer-to-Peer** - Direct browser-to-browser file transfers using WebRTC  
 ✅ **End-to-End Encryption** - DTLS + AES-GCM 256-bit encryption  
 ✅ **100% FREE** - No server costs, uses free cloud services  
@@ -19,7 +21,7 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 ✅ **Fast Transfers** - Up to **10-100x faster** than relay servers  
 ✅ **NAT Traversal** - 99%+ connection success rate  
 ✅ **QR Code Sharing** - Scan to connect instantly  
-✅ **Progress Tracking** - Real-time upload/download progress  
+✅ **Progress Tracking** - Real-time percentage, speed, and ETA  
 ✅ **Multiple Peers** - Connect to multiple people simultaneously  
 ✅ **No Signup Required** - Just open and share!  
 
@@ -195,6 +197,7 @@ graph LR
 - 🔷 **TypeScript** - Type safety
 - ⚡ **Vite** - Build tool and dev server
 - 🎨 **Tailwind CSS** - Styling
+- 💎 **Cosmic Glass Design** - Custom Glassmorphism System
 - ✨ **Framer Motion** - Animations
 - 📱 **Lucide React** - Icons
 
