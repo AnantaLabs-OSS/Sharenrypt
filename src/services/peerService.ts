@@ -516,6 +516,7 @@ export class PeerService {
         type: metadata.type,
         progress: Math.round((startingOffset / metadata.size) * 100),
         status: 'pending',
+        peerId: targetPeerId,
       };
       this.emit('file-outgoing', transfer);
 
@@ -760,6 +761,7 @@ export class PeerService {
         startTime: Date.now(),
         cryptoKey,
         chunks: [], // Fallback buffer
+        peerId: metadata.id.split('_')[0], // Extract Peer ID from composite ID
       };
 
       // Fix for above: 'message' is not defined here. metadata has 'offset'.

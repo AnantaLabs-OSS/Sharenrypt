@@ -11,6 +11,7 @@ export interface FileTransfer {
   // Streaming Support
   fileHandle?: any; // FileSystemFileHandle
   writable?: any; // FileSystemWritableFileStream
+  peerId?: string;
 }
 
 export interface PeerConnection {

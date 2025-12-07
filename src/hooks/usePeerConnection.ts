@@ -103,12 +103,15 @@ export const usePeerConnection = () => {
         if (file.id === data.id) {
           const updated = { ...file, ...data };
           if (updated.status === 'completed') {
+            // Find peer info
+            const peer = connections.find(c => c.id === updated.peerId);
             HistoryService.add({
               id: updated.id,
               fileName: updated.name,
               fileSize: updated.size,
               fileType: updated.type,
-              peerId: 'unknown',
+              peerId: updated.peerId || 'unknown',
+              username: peer?.username || 'Unknown',
               direction: 'incoming',
               status: 'completed'
             });
@@ -130,12 +133,14 @@ export const usePeerConnection = () => {
           // Actually, let's just log it if we see it.
 
           if (updated.status === 'completed') {
+            const peer = connections.find(c => c.id === updated.peerId);
             HistoryService.add({
               id: updated.id,
               fileName: updated.name,
               fileSize: updated.size,
               fileType: updated.type,
-              peerId: 'unknown',
+              peerId: updated.peerId || 'unknown',
+              username: peer?.username || 'Unknown',
               direction: 'outgoing',
               status: 'completed'
             });

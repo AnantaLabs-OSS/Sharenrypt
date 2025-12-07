@@ -4,6 +4,7 @@ export interface HistoryItem {
     fileSize: number;
     fileType: string;
     peerId: string;
+    username?: string;
     direction: 'incoming' | 'outgoing';
     status: 'completed' | 'failed' | 'cancelled';
     timestamp: number;

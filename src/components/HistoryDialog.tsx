@@ -66,6 +66,10 @@ export const HistoryDialog: React.FC<HistoryDialogProps> = ({ isOpen, onClose })
                                             <span>•</span>
                                             <span>{new Date(item.timestamp).toLocaleDateString()} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                         </p>
+                                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                                            <span className="font-mono text-cyan-500/80">{item.peerId ? item.peerId.substring(0, 8) : 'Unknown'}</span>
+                                            {item.username && <span className="text-slate-400">• {item.username}</span>}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className={`text-xs px-2 py-1 rounded-full border ${item.status === 'completed'
