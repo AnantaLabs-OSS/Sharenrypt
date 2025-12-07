@@ -30,11 +30,11 @@ export function FAQ() {
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="text-center mb-12">
-                <h1 className="text-4xl font-bold text-white mb-4 flex items-center justify-center gap-3">
-                    <HelpCircle className="w-8 h-8 text-cyan-400" />
+                <h1 className="text-4xl font-bold text-foreground mb-4 flex items-center justify-center gap-3">
+                    <HelpCircle className="w-8 h-8 text-primary" />
                     Common Questions
                 </h1>
-                <p className="text-slate-400">Everything you need to know about Sharencrypt.</p>
+                <p className="text-muted-foreground">Everything you need to know about Sharencrypt.</p>
             </div>
 
             <div className="space-y-4">
@@ -44,16 +44,16 @@ export function FAQ() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1 }}
-                        className="rounded-xl bg-slate-900/50 border border-slate-800 overflow-hidden"
+                        className="rounded-xl bg-card border border-border overflow-hidden"
                     >
                         <details className="group">
-                            <summary className="flex items-center justify-between p-6 cursor-pointer list-none">
-                                <h3 className="text-lg font-medium text-slate-200">{faq.q}</h3>
-                                <span className="text-cyan-500 transition-transform group-open:rotate-180">
+                            <summary className="flex items-center justify-between p-6 cursor-pointer list-none hover:bg-muted/30 transition-colors">
+                                <h3 className="text-lg font-medium text-foreground">{faq.q}</h3>
+                                <span className="text-primary transition-transform group-open:rotate-180">
                                     <ChevronDown className="w-5 h-5" />
                                 </span>
                             </summary>
-                            <div className="px-6 pb-6 text-slate-400 leading-relaxed border-t border-slate-800/50 pt-4">
+                            <div className="px-6 pb-6 text-muted-foreground leading-relaxed border-t border-border pt-4 bg-muted/10">
                                 {faq.a}
                             </div>
                         </details>

@@ -5,10 +5,14 @@ import './index.css';
 
 import { BrowserRouter } from 'react-router-dom';
 
+import { ThemeProvider } from './context/ThemeContext';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <ThemeProvider defaultTheme="dark" storageKey="sharencrypt-theme">
+        <App />
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>
 );

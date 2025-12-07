@@ -67,35 +67,35 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
             <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
-                className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+                className="w-full max-w-lg bg-card border border-border rounded-xl shadow-lg overflow-hidden"
             >
                 {/* Header */}
-                <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Server className="w-5 h-5 text-cyan-400" />
+                <div className="p-6 border-b border-border flex justify-between items-center bg-muted/20">
+                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                        <Server className="w-5 h-5 text-primary" />
                         Settings
                     </h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-slate-800">
+                <div className="flex border-b border-border">
                     <button
                         onClick={() => setActiveTab('identity')}
-                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'identity' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-950/10' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'identity' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Identity
                     </button>
                     <button
                         onClick={() => setActiveTab('network')}
-                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'network' ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-950/10' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'network' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Network (ICE)
                     </button>
@@ -105,21 +105,21 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                 <div className="p-6">
                     {activeTab === 'identity' && (
                         <div className="space-y-6">
-                            <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
                                 <div>
-                                    <h3 className="text-white font-medium mb-1">Peer ID Persistence</h3>
-                                    <p className="text-sm text-slate-400">Keep the same ID after page refresh.</p>
+                                    <h3 className="text-foreground font-medium mb-1">Peer ID Persistence</h3>
+                                    <p className="text-sm text-muted-foreground">Keep the same ID after page refresh.</p>
                                 </div>
                                 <button
                                     onClick={handleToggleLock}
-                                    className={`p-3 rounded-xl transition-all ${isLocked ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                    className={`p-3 rounded-lg transition-all ${isLocked ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                 >
                                     {isLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
                                 </button>
                             </div>
 
-                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                                <p className="text-xs text-blue-200">
+                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                <p className="text-xs text-blue-600 dark:text-blue-300 leading-relaxed">
                                     <strong>Note:</strong> Locking your ID saves it to this browser. If you clear cache or use a different device, your ID will change.
                                 </p>
                             </div>
@@ -129,22 +129,22 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                     {activeTab === 'network' && (
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-white font-medium mb-1">Custom IEC Servers</h3>
-                                <p className="text-xs text-slate-400 mb-4">Add your own STUN/TURN servers for better connectivity.</p>
+                                <h3 className="text-foreground font-medium mb-1">Custom ICE Servers</h3>
+                                <p className="text-xs text-muted-foreground mb-4">Add your own STUN/TURN servers for better connectivity.</p>
                             </div>
 
                             {/* List */}
                             <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                                 {customServers.length === 0 && (
-                                    <p className="text-center text-slate-500 py-4 text-sm">No custom servers added.</p>
+                                    <p className="text-center text-muted-foreground py-4 text-sm">No custom servers added.</p>
                                 )}
                                 {customServers.map((server, idx) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
+                                    <div key={idx} className="flex items-center justify-between p-3 bg-muted/40 rounded-lg border border-border">
                                         <div className="overflow-hidden">
-                                            <p className="text-xs font-mono text-cyan-300 truncate">{server.urls}</p>
-                                            {server.username && <p className="text-[10px] text-slate-500">User: {server.username}</p>}
+                                            <p className="text-xs font-mono text-foreground truncate">{server.urls}</p>
+                                            {server.username && <p className="text-[10px] text-muted-foreground">User: {server.username}</p>}
                                         </div>
-                                        <button onClick={() => handleRemoveServer(idx)} className="text-slate-500 hover:text-rose-400">
+                                        <button onClick={() => handleRemoveServer(idx)} className="text-muted-foreground hover:text-destructive">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -152,13 +152,13 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                             </div>
 
                             {/* Add Form */}
-                            <div className="pt-4 border-t border-slate-800 space-y-3">
+                            <div className="pt-4 border-t border-border space-y-3">
                                 <input
                                     type="text"
                                     placeholder="STUN/TURN URL (e.g., stun:stun.l.google.com:19302)"
                                     value={newServer.urls}
                                     onChange={e => setNewServer({ ...newServer, urls: e.target.value })}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-cyan-500 outline-none"
+                                    className="w-full bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
                                 />
                                 <div className="grid grid-cols-2 gap-2">
                                     <input
@@ -166,19 +166,19 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                                         placeholder="Username (Optional)"
                                         value={newServer.username || ''}
                                         onChange={e => setNewServer({ ...newServer, username: e.target.value })}
-                                        className="bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-cyan-500 outline-none"
+                                        className="bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
                                     />
                                     <input
                                         type="password"
                                         placeholder="Credential (Optional)"
                                         value={newServer.credential || ''}
                                         onChange={e => setNewServer({ ...newServer, credential: e.target.value })}
-                                        className="bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-white focus:border-cyan-500 outline-none"
+                                        className="bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
                                     />
                                 </div>
                                 <button
                                     onClick={handleAddServer}
-                                    className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                                    className="w-full py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors border border-border"
                                 >
                                     <Plus className="w-4 h-4" /> Add Server
                                 </button>
@@ -188,7 +188,7 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 bg-slate-950 text-center text-xs text-slate-600 border-t border-slate-900">
+                <div className="p-4 bg-muted/20 text-center text-xs text-muted-foreground border-t border-border">
                     Changes require a page refresh to take effect.
                 </div>
             </motion.div>

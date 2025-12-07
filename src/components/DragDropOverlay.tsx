@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -71,20 +72,20 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({ onFileDrop, is
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-8 pointer-events-none"
+                    className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-8 pointer-events-none"
                 >
-                    <div className="w-full h-full border-4 border-dashed border-cyan-500/50 rounded-3xl flex flex-col items-center justify-center bg-cyan-500/5 transition-colors">
+                    <div className="w-full h-full border-4 border-dashed border-primary/50 rounded-3xl flex flex-col items-center justify-center bg-primary/5 transition-colors">
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
-                            className="bg-slate-900 p-8 rounded-full shadow-2xl shadow-cyan-500/20 mb-6"
+                            className="bg-card p-8 rounded-full shadow-2xl shadow-primary/20 mb-6"
                         >
-                            <FileUp className="w-16 h-16 text-cyan-400 animate-bounce" />
+                            <FileUp className="w-16 h-16 text-primary animate-bounce" />
                         </motion.div>
-                        <h2 className="text-3xl font-bold text-slate-100 mb-2">
+                        <h2 className="text-3xl font-bold text-foreground mb-2">
                             Drop file to send
                         </h2>
-                        <p className="text-slate-400 text-lg">
+                        <p className="text-muted-foreground text-lg">
                             {isConnect
                                 ? 'Release to instantly start secure transfer'
                                 : 'Connect to a peer first to start sharing'}
