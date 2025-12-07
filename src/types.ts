@@ -5,7 +5,7 @@ export interface FileTransfer {
   type: string;
   progress: number;
   encryptionProgress?: number;
-  status: 'pending' | 'transferring' | 'completed' | 'error' | 'downloading' | 'encrypting' | 'waiting';
+  status: 'pending' | 'transferring' | 'completed' | 'error' | 'downloading' | 'encrypting' | 'waiting' | 'sending';
   speed?: number; // bytes per second
   eta?: number; // seconds remaining
   // Streaming Support

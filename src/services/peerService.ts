@@ -597,7 +597,7 @@ export class PeerService {
           progress,
           speed,
           eta,
-          status: 'encrypting'
+          status: 'sending'
         });
       }
 
