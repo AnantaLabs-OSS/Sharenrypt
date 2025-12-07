@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "client-zip": "^2.5.0",
     "framer-motion": "^11.0.8",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.344.0",

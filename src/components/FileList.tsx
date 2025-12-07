@@ -50,7 +50,7 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
 
                 <p className="text-xs text-slate-400 mb-2">{formatBytes(file.size)}</p>
 
-                {['transferring', 'downloading', 'encrypting'].includes(file.status) ? (
+                {['transferring', 'downloading', 'encrypting', 'sending'].includes(file.status) ? (
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs text-cyan-300 font-mono">
                       <span>{file.progress}%</span>
@@ -61,7 +61,7 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
                     </div>
                     <ProgressBar
                       progress={file.progress}
-                      status=""
+                      status={file.status === 'encrypting' ? 'Encrypting...' : file.status === 'sending' ? 'Sending...' : ''}
                       color="bg-cyan-500"
                     />
                   </div>

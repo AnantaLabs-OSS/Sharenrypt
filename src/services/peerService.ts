@@ -472,8 +472,13 @@ export class PeerService {
     });
   }
 
-  // File Transfer Methods
-  public async sendFile(targetPeerId: string, file: File, startingOffset: number = 0): Promise<void> {
+  // GENERIC STREAM SENDER
+  private async streamAndSend(
+    targetPeerId: string,
+    stream: ReadableStream<Uint8Array>,
+    metadata: { name: string; size: number; type: string },
+    startingOffset: number = 0
+  ): Promise<void> {
     const conn = this.connections.get(targetPeerId);
 
     if (!conn) {
@@ -486,21 +491,17 @@ export class PeerService {
       return;
     }
 
-    // 0. Enforce File Size Limit (Default: 1GB)
-    // Only enforced for NEW transfers (offset 0), or strictly always?
-    // Let's enforce always, but technically if resuming it's same file.
+    // Enforce File Size Limit (Default: 1GB)
     const MAX_FILE_SIZE = Number(import.meta.env.VITE_MAX_FILE_SIZE) || 1073741824;
-    if (file.size > MAX_FILE_SIZE) {
+    // Only check size if passed in metadata
+    if (metadata.size > MAX_FILE_SIZE) {
       toast.error(`File too large! Limit is ${(MAX_FILE_SIZE / 1024 / 1024 / 1024).toFixed(1)}GB`);
-      this.emit('error', { error: new Error('File size limit exceeded') });
-      return;
+      return; // Early return to prevent throw if just checking
     }
 
     try {
-      // 1. Acquire Wake Lock
       await this.requestWakeLock();
 
-      // 2. Generate unique key/IV for this file transfer
       toast.loading(startingOffset > 0 ? 'Resuming transfer...' : 'Preparing encryption...', { id: 'encrypting' });
       const cryptoKey = await Encryption.generateKey();
       const keyStr = await Encryption.exportKey(cryptoKey);
@@ -508,42 +509,40 @@ export class PeerService {
 
       toast.dismiss('encrypting');
 
-      // 2. Initialize Transfer UI
       const transfer: FileTransfer = {
         id: transferId,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        progress: Math.round((startingOffset / file.size) * 100),
+        name: metadata.name,
+        size: metadata.size,
+        type: metadata.type,
+        progress: Math.round((startingOffset / metadata.size) * 100),
         status: 'pending',
+        peerId: targetPeerId,
       };
       this.emit('file-outgoing', transfer);
 
-      // 3. Send Metadata (Start Signal) - Send KEY only, IV will be per-chunk
       conn.send({
         type: startingOffset > 0 ? 'file-resume' : 'file-start',
         payload: {
           id: transferId,
-          name: file.name,
-          size: file.size,
-          type: file.type,
+          name: metadata.name,
+          size: metadata.size,
+          type: metadata.type,
           key: keyStr,
-          offset: startingOffset // IMPORTANT: Tell receiver where to start
+          offset: startingOffset
         },
       });
 
-      toast.loading(`Sending ${file.name}...`, { id: transferId });
+      toast.loading(`Sending ${metadata.name}...`, { id: transferId });
 
-      // 4. Initialize Worker
       const worker = new Worker(new URL('../workers/encryption.worker.ts', import.meta.url), { type: 'module' });
 
       let offset = startingOffset;
       const startTime = Date.now();
 
-      // Stream from OFFSET
-      const fileSlice = file.slice(startingOffset);
-      const stream = fileSlice.stream();
       const reader = stream.getReader();
+
+      const currentConn = conn as any;
+      const getBuffered = () => (currentConn.dataChannel?.bufferedAmount ?? currentConn.bufferedAmount ?? 0);
 
       const encryptChunk = (chunk: ArrayBuffer, key: CryptoKey, iv: Uint8Array): Promise<ArrayBuffer> => {
         return new Promise((resolve, reject) => {
@@ -561,14 +560,11 @@ export class PeerService {
         });
       };
 
-      // 5. Stream & Encrypt & Send Loop
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const currentConn = conn as any;
-        // Backpressure control
-        while (currentConn.bufferedAmount > 1024 * 1024) {
+        while (getBuffered() > 1024 * 1024) {
           await new Promise(r => setTimeout(r, 10));
         }
 
@@ -576,55 +572,63 @@ export class PeerService {
           throw new Error('Connection lost');
         }
 
-        // Generate unique IV for this chunk
         const chunkIv = window.crypto.getRandomValues(new Uint8Array(12));
+        const encryptedChunk = await encryptChunk(value.buffer as ArrayBuffer, cryptoKey, chunkIv);
 
-        // Encrypt in worker
-        const encryptedChunk = await encryptChunk(value.buffer, cryptoKey, chunkIv);
-
-        // Send chunk + its IV
         conn.send({
           type: 'file-chunk',
           payload: {
             id: transferId,
             chunk: encryptedChunk,
-            iv: btoa(String.fromCharCode(...chunkIv)), // Send IV as string
-            offset, // Current absolute offset
-            totalSize: file.size,
+            iv: btoa(String.fromCharCode(...chunkIv)),
+            offset,
+            totalSize: metadata.size,
           },
         });
+        // Accurate Progress Calculation: Subtract buffered amount
+        const buffered = getBuffered();
+        const actuallySent = Math.max(0, offset - buffered);
 
-        offset += value.length;
-
-        // Progress emission
-        const progress = Math.round((offset / file.size) * 100);
-
-        // Calculate Speed & ETA
-        const elapsed = (Date.now() - startTime) / 1000; // seconds
-        const speed = (offset - startingOffset) / elapsed; // bytes per second (current session)
-        const remainingBytes = file.size - offset;
+        const progress = Math.round((actuallySent / metadata.size) * 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        const speed = (actuallySent - startingOffset) / elapsed;
+        const remainingBytes = metadata.size - actuallySent;
         const eta = speed > 0 ? remainingBytes / speed : 0;
 
+        /* 
+        // Local Estimation DISABLED: Relying on Receiver Feedback
         this.emit('file-progress', {
           id: transfer.id,
-          progress,
-          speed,
-          eta,
-          status: 'encrypting'
+          progress: 0, // Keep 0 until feedback
+          status: 'sending'
         });
+        */
+      }
+
+      // Final Drain: Wait for buffer to clear before declaring "Sent"
+      let drainRetries = 0;
+      while (getBuffered() > 0 && drainRetries < 60) {
+        await new Promise(r => setTimeout(r, 100));
+        drainRetries++;
+
+        // Update progress during drain
+        const buffered = getBuffered();
+        const actuallySent = Math.max(0, offset - buffered);
+        const progress = Math.round((actuallySent / metadata.size) * 100);
+        // Drain Loop (Silent): Ensure buffer clears but don't update UI locally
+        // The receiver will send 100% when they get it.
       }
 
       worker.terminate();
       this.releaseWakeLock();
 
-      // 6. Finish
       conn.send({
         type: 'file-complete',
         payload: { id: transferId },
       });
 
       toast.dismiss(transferId);
-      toast.success('File sent! Waiting for confirmation...');
+      toast.success('Sent! Waiting for confirmation...');
 
       transfer.status = 'waiting';
       transfer.progress = 100;
@@ -634,8 +638,48 @@ export class PeerService {
       console.error('File send error:', error);
       toast.dismiss('encrypting');
       toast.error('Failed to send file');
-      this.releaseWakeLock(); // Release lock on error
+      this.releaseWakeLock();
       this.emit('error', { error });
+    }
+  }
+
+  public async sendFile(targetPeerId: string, file: File, startingOffset: number = 0): Promise<void> {
+    const stream = file.slice(startingOffset).stream();
+    await this.streamAndSend(targetPeerId, stream, { name: file.name, size: file.size, type: file.type }, startingOffset);
+  }
+
+  public async sendZip(targetPeerId: string, files: File[]): Promise<void> {
+    try {
+      const { ZipService } = await import('./zipService'); // Dynamic import
+
+      const totalSize = await ZipService.getZipSizePrediction(files);
+      const response = ZipService.createZipStream(files);
+      const stream = response.body;
+
+      if (!stream) {
+        toast.error("Failed to create zip stream");
+        return;
+      }
+
+      // Determine name
+      let zipName = 'Archive.zip';
+      if (files[0].webkitRelativePath) {
+        // If we have relative path "folder/sub/file.txt", use the top level folder "folder" in name
+        const parts = files[0].webkitRelativePath.split('/');
+        if (parts.length > 1) zipName = parts[0] + '.zip';
+      } else if (files.length === 1) {
+        zipName = files[0].name + '.zip';
+      }
+
+
+      await this.streamAndSend(targetPeerId, stream as unknown as ReadableStream<Uint8Array>, {
+        name: zipName,
+        size: totalSize,
+        type: 'application/zip'
+      });
+    } catch (e) {
+      console.error("Zip error", e);
+      toast.error("Failed to prepare zip");
     }
   }
 
@@ -665,7 +709,7 @@ export class PeerService {
         this.handleFileStart(message.payload, true);
         break;
       case 'file-chunk':
-        this.handleFileChunk(message.payload);
+        this.handleFileChunk(message.payload, peerId);
         break;
       case 'file-complete':
         this.handleFileComplete(message.payload, peerId);
@@ -690,6 +734,16 @@ export class PeerService {
           messageId: message.payload.messageId
         });
         break;
+      case 'progress-sync':
+        // SENDER SIDE: Receive progress from Receiver
+        this.emit('file-progress', {
+          id: message.payload.id,
+          progress: message.payload.progress,
+          speed: message.payload.speed,
+          eta: message.payload.eta,
+          status: 'sending'
+        });
+        break;
       default:
         console.warn('Unknown message type:', message.type);
     }
@@ -707,10 +761,13 @@ export class PeerService {
         startTime: Date.now(),
         cryptoKey,
         chunks: [], // Fallback buffer
+        peerId: metadata.id.split('_')[0], // Extract Peer ID from composite ID
       };
 
       // Fix for above: 'message' is not defined here. metadata has 'offset'.
       transferData.receivedSize = metadata.offset || 0;
+
+      console.log(`[FileStart] Processing ${metadata.name} (${metadata.id}). Resume: ${isResume}`);
 
       // 1. Attempt FileSystem Access API (Chrome/Edge)
       if ('showSaveFilePicker' in window) {
@@ -730,6 +787,7 @@ export class PeerService {
           }
 
           toast.success(isResume ? 'Resuming to disk...' : 'Streaming directly to disk! 🚀');
+          console.log('[FileStart] FileSystem Access API success. Writable created.');
         } catch (err: any) {
           if (err.name === 'AbortError') {
             // User cancelled picker
@@ -738,6 +796,8 @@ export class PeerService {
           }
           console.warn('FileSystem Access API failed, falling back to RAM:', err);
         }
+      } else {
+        console.log('[FileStart] FileSystem Access API not supported. Using RAM fallback.');
       }
 
       const transfer: FileTransfer = {
@@ -764,7 +824,7 @@ export class PeerService {
     }
   }
 
-  private async handleFileChunk(data: any): Promise<void> {
+  private async handleFileChunk(data: any, peerId: string): Promise<void> {
     // data: { id, chunk, iv, offset, totalSize }
     const transfer = this.incomingTransfers.get(data.id);
     if (!transfer || !transfer.cryptoKey) return;
@@ -807,6 +867,25 @@ export class PeerService {
         eta,
         status: 'downloading',
       });
+
+      // FEEDBACK: Send progress back to sender (Throttle: 500ms)
+      const now = Date.now();
+      if (!transfer.lastFeedbackTime || now - transfer.lastFeedbackTime > 500 || progress === 100) {
+        transfer.lastFeedbackTime = now;
+        const conn = this.connections.get(peerId); // We need peerId here!
+        if (conn) {
+          conn.send({
+            type: 'progress-sync',
+            payload: {
+              id: transfer.id,
+              progress,
+              speed,
+              eta
+            }
+          });
+        }
+      }
+
     } catch (e) {
       console.error("Chunk decryption failed", e);
     }
@@ -840,18 +919,25 @@ export class PeerService {
     }
   }
 
-  private handleFileComplete(data: any, peerId: string): Promise<void> {
+  private async handleFileComplete(data: any, peerId: string): Promise<void> {
+    console.log(`[FileComplete] Triggered for ID: ${data.id}`);
     const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer) return Promise.resolve();
+    if (!transfer) {
+      console.error(`[FileComplete] Transfer NOT found for ID: ${data.id}`);
+      return Promise.resolve();
+    }
 
     try {
       toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
+      console.log(`[FileComplete] Writable mode: ${!!transfer.writable}. Chunks in RAM: ${transfer.chunks?.length}`);
 
       if (transfer.writable) {
+        console.log('[FileComplete] Closing writable...');
         // Close the file stream
-        // Note: await transfer.writable.close() is what we want, but TS might complain if 'any'
-        // Just in case:
-        (transfer.writable as any).close().then(() => {
+        try {
+          await (transfer.writable as any).close();
+          console.log('[FileComplete] Writable closed.');
+
           toast.dismiss(data.id);
           toast.success(`Received ${transfer.name}!`);
           playSound('success');
@@ -868,11 +954,46 @@ export class PeerService {
               payload: { id: transfer.id },
             });
           }
-        });
+        } catch (hErr) {
+          console.error("[FileComplete] Handle close error", hErr);
+          throw hErr;
+        }
       } else {
+        console.log('[FileComplete] Starting RAM assembly...');
         // Reassemble from RAM chunks (Legacy/Fallback)
+        if (!transfer.chunks || transfer.chunks.length === 0) {
+          console.error('[FileComplete] No chunks found in RAM!');
+          // Fallback: Check if we have a Blob from single-chunk logic? No, we push to chunks.
+          // But maybe we can recover? No.
+        } else {
+          // 1. Sort chunks by offset to ensure correct order
+          transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+          console.log('[FileComplete] Chunks sorted.');
+
+          // 2. Create Blob
+          const blob = new Blob(transfer.chunks.map((c: any) => c.data), { type: transfer.type });
+          console.log(`[FileComplete] Blob created. Size: ${blob.size}. Type: ${transfer.type}`);
+          const url = URL.createObjectURL(blob);
+
+          // 3. Trigger Download
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = transfer.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('[FileComplete] Download triggered via anchor click.');
+        }
+
         toast.dismiss(data.id);
-        toast.success(`Received ${transfer.name} (RAM)!`);
+        toast.success(`Received ${transfer.name}!`);
+        playSound('success');
+
+        // Update status for History/UI
+        transfer.status = 'completed';
+        transfer.progress = 100;
+        this.emit('file-received', transfer);
 
         // Send ACK
         const conn = this.connections.get(peerId);
@@ -885,8 +1006,8 @@ export class PeerService {
       }
     } catch (e) {
       console.error("File finalization error:", e);
+      toast.error(`Error saving ${transfer.name}`);
     }
-    return Promise.resolve();
   }
 
   // Event handling

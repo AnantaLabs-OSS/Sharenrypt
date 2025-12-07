@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { PeerService } from '../services/peerService';
 import { FileTransfer, PeerConnection } from '../types';
+import { HistoryService } from '../services/historyService';
 
 // Create singleton instance
 let peerServiceInstance: PeerService | null = null;
@@ -98,19 +99,56 @@ export const usePeerConnection = () => {
     };
 
     const handleFileReceived = (data: Partial<FileTransfer>) => {
-      setFiles(prev => prev.map(file =>
-        file.id === data.id
-          ? { ...file, ...data }
-          : file
-      ));
+      setFiles(prev => prev.map(file => {
+        if (file.id === data.id) {
+          const updated = { ...file, ...data };
+          if (updated.status === 'completed') {
+            // Find peer info
+            const peer = connections.find(c => c.id === updated.peerId);
+            HistoryService.add({
+              id: updated.id,
+              fileName: updated.name,
+              fileSize: updated.size,
+              fileType: updated.type,
+              peerId: updated.peerId || 'unknown',
+              username: peer?.username || 'Unknown',
+              direction: 'incoming',
+              status: 'completed'
+            });
+          }
+          return updated;
+        }
+        return file;
+      }));
     };
 
     const handleFileSent = (data: Partial<FileTransfer>) => {
-      setFiles(prev => prev.map(file =>
-        file.id === data.id
-          ? { ...file, ...data }
-          : file
-      ));
+      setFiles(prev => prev.map(file => {
+        if (file.id === data.id) {
+          const updated = { ...file, ...data };
+          // If status changed to completed (or waiting which is 100%)
+          // We'll use 'completed' if the UI sets it, or we trigger it manually? 
+          // In PeerService, it emits 'waiting' when done sending. Real completion might be explicit ack.
+          // Let's assume 'waiting' with 100% progress is efficient 'Sent' status for now or add 'completed' handling if app sends it.
+          // Actually, let's just log it if we see it.
+
+          if (updated.status === 'completed') {
+            const peer = connections.find(c => c.id === updated.peerId);
+            HistoryService.add({
+              id: updated.id,
+              fileName: updated.name,
+              fileSize: updated.size,
+              fileType: updated.type,
+              peerId: updated.peerId || 'unknown',
+              username: peer?.username || 'Unknown',
+              direction: 'outgoing',
+              status: 'completed'
+            });
+          }
+          return updated;
+        }
+        return file;
+      }));
     };
 
     const handleMessage = (data: { peerId: string; text: string; id: string }) => {
@@ -196,6 +234,11 @@ export const usePeerConnection = () => {
     await peerServiceRef.current.sendFile(targetPeerId, file);
   }, []);
 
+  const sendZip = useCallback(async (targetPeerId: string, files: File[]) => {
+    if (!peerServiceRef.current) return;
+    await peerServiceRef.current.sendZip(targetPeerId, files);
+  }, []);
+
   const resumeTransfer = useCallback((targetPeerId: string, file: File, lastOffset: number) => {
     if (!peerServiceRef.current) return;
     peerServiceRef.current.resumeTransfer(targetPeerId, file, lastOffset);
@@ -249,6 +292,7 @@ export const usePeerConnection = () => {
     connectionStatus,
     connectToPeer: (id: string) => { if (peerServiceRef.current) peerServiceRef.current.connectToPeer(id); },
     sendFile,
+    sendZip,
     resumeTransfer,
     sendTextMessage,
     disconnectPeer,
