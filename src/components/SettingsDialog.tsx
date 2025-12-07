@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Palette, Monitor, Moon, Sun } from 'lucide-react';
+import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Palette, Monitor, Moon, Sun, Info } from 'lucide-react';
 import { settingsService, CustomIceServer } from '../services/settingsService';
 import toast from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
+import { Link } from 'react-router-dom';
 
 interface SettingsDialogProps {
     isOpen: boolean;
@@ -178,9 +179,19 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
 
                     {activeTab === 'network' && (
                         <div className="space-y-4">
-                            <div>
-                                <h3 className="text-foreground font-medium mb-1">Custom ICE Servers</h3>
-                                <p className="text-xs text-muted-foreground mb-4">Add your own STUN/TURN servers for better connectivity.</p>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-foreground font-medium mb-1">Custom ICE Servers</h3>
+                                    <p className="text-xs text-muted-foreground mb-4">Add your own STUN/TURN servers for better connectivity.</p>
+                                </div>
+                                <Link
+                                    to="/guide#stun-turn"
+                                    onClick={onClose}
+                                    className="text-primary hover:text-primary/80 transition-colors p-1"
+                                    title="Not sure what this is? Read the guide."
+                                >
+                                    <Info className="w-5 h-5" />
+                                </Link>
                             </div>
 
                             {/* List */}
