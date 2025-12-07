@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap } from 'lucide-react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ import { ConnectionDialog } from './components/ConnectionDialog';
 import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
 import { SoundToggle } from './components/SoundToggle';
 import { Chat } from './components/Chat';
+import { HistoryDialog } from './components/HistoryDialog';
 import { DragDropOverlay } from './components/DragDropOverlay';
 import { analytics } from './utils/analytics';
 
@@ -31,13 +32,15 @@ function App() {
     rejectConnection,
     retryConnection,
     username,
-    setUsername
+    setUsername,
+    sendZip
   } = usePeerConnection();
 
   const [showQR, setShowQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
 
   // Logic to show welcome dialog: if no username
@@ -63,23 +66,38 @@ function App() {
 
   const handleFileSelect = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file && connections.length > 0) {
-        sendFile(file, connections[0].id);
-        analytics.trackEvent('File', 'Select', 'Input', file.size);
+      const selectedMap = event.target.files;
+      if (selectedMap && selectedMap.length > 0 && connections.length > 0) {
+        const fileList = Array.from(selectedMap);
+
+        if (fileList.length > 1) {
+          sendZip(connections[0].id, fileList);
+          analytics.trackEvent('File', 'SelectBatch', 'Input', fileList.length);
+        } else {
+          sendFile(fileList[0], connections[0].id);
+          analytics.trackEvent('File', 'Select', 'Input', fileList[0].size);
+        }
       }
     },
-    [connections, sendFile]
+    [connections, sendFile, sendZip]
   );
 
   const handleFileDrop = useCallback(
-    (file: File) => {
-      if (file && connections.length > 0) {
-        sendFile(file, connections[0].id);
-        analytics.trackEvent('File', 'Drop', 'Overlay', file.size);
+    (droppedFiles: File[]) => {
+      if (droppedFiles && droppedFiles.length > 0 && connections.length > 0) {
+        // If multiple files or folder structure detected, use Zip
+        const shouldZip = droppedFiles.length > 1 || (droppedFiles[0] as any).webkitRelativePath?.includes('/');
+
+        if (shouldZip) {
+          sendZip(connections[0].id, droppedFiles);
+          analytics.trackEvent('File', 'DropBatch', 'Overlay', droppedFiles.length);
+        } else {
+          sendFile(droppedFiles[0], connections[0].id);
+          analytics.trackEvent('File', 'Drop', 'Overlay', droppedFiles[0].size);
+        }
       }
     },
-    [connections, sendFile]
+    [connections, sendFile, sendZip]
   );
 
   const handleScan = useCallback((scannedPeerId: string) => {
@@ -151,6 +169,12 @@ function App() {
         onSubmit={setUsername}
       />
 
+      <AnimatePresence>
+        {showHistory && (
+          <HistoryDialog isOpen={showHistory} onClose={() => setShowHistory(false)} />
+        )}
+      </AnimatePresence>
+
       <div className="relative z-10 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 flex flex-col min-h-screen pb-20">
         {/* Header Section */}
         <motion.div
@@ -173,7 +197,16 @@ function App() {
               </p>
             </div>
 
-            <div className="ml-4">
+            <div className="ml-4 flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowHistory(true)}
+                className="p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-cyan-400 transition-colors"
+                title="Transfer History"
+              >
+                <Clock className="w-5 h-5" />
+              </motion.button>
               <SoundToggle />
             </div>
           </div>
@@ -202,6 +235,7 @@ function App() {
               <input
                 type="file"
                 className="hidden"
+                multiple
                 onChange={handleFileSelect}
                 disabled={connections.length === 0}
               />

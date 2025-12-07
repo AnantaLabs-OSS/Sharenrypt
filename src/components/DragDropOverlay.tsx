@@ -3,7 +3,7 @@ import { FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DragDropOverlayProps {
-    onFileDrop: (file: File) => void;
+    onFileDrop: (files: File[]) => void;
     isConnect: boolean;
 }
 
@@ -33,14 +33,21 @@ export const DragDropOverlay: React.FC<DragDropOverlayProps> = ({ onFileDrop, is
             e.stopPropagation();
         };
 
-        const handleDrop = (e: DragEvent) => {
+        const handleDrop = async (e: DragEvent) => {
             e.preventDefault();
             e.stopPropagation();
             setIsDragging(false);
 
-            if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                onFileDrop(file);
+            if (e.dataTransfer?.items) {
+                const { getFilesFromDataTransfer } = await import('../utils/fileUtils');
+                const files = await getFilesFromDataTransfer(e.dataTransfer.items);
+                if (files.length > 0) {
+                    onFileDrop(files);
+                }
+            } else if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+                // Fallback
+                const files = Array.from(e.dataTransfer.files);
+                onFileDrop(files);
             }
         };
 
