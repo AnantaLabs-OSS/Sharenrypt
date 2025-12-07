@@ -738,6 +738,8 @@ export class PeerService {
       // Fix for above: 'message' is not defined here. metadata has 'offset'.
       transferData.receivedSize = metadata.offset || 0;
 
+      console.log(`[FileStart] Processing ${metadata.name} (${metadata.id}). Resume: ${isResume}`);
+
       // 1. Attempt FileSystem Access API (Chrome/Edge)
       if ('showSaveFilePicker' in window) {
         try {
@@ -756,6 +758,7 @@ export class PeerService {
           }
 
           toast.success(isResume ? 'Resuming to disk...' : 'Streaming directly to disk! 🚀');
+          console.log('[FileStart] FileSystem Access API success. Writable created.');
         } catch (err: any) {
           if (err.name === 'AbortError') {
             // User cancelled picker
@@ -764,6 +767,8 @@ export class PeerService {
           }
           console.warn('FileSystem Access API failed, falling back to RAM:', err);
         }
+      } else {
+        console.log('[FileStart] FileSystem Access API not supported. Using RAM fallback.');
       }
 
       const transfer: FileTransfer = {
@@ -866,18 +871,25 @@ export class PeerService {
     }
   }
 
-  private handleFileComplete(data: any, peerId: string): Promise<void> {
+  private async handleFileComplete(data: any, peerId: string): Promise<void> {
+    console.log(`[FileComplete] Triggered for ID: ${data.id}`);
     const transfer = this.incomingTransfers.get(data.id);
-    if (!transfer) return Promise.resolve();
+    if (!transfer) {
+      console.error(`[FileComplete] Transfer NOT found for ID: ${data.id}`);
+      return Promise.resolve();
+    }
 
     try {
       toast.loading(`Finalizing ${transfer.name}...`, { id: data.id });
+      console.log(`[FileComplete] Writable mode: ${!!transfer.writable}. Chunks in RAM: ${transfer.chunks?.length}`);
 
       if (transfer.writable) {
+        console.log('[FileComplete] Closing writable...');
         // Close the file stream
-        // Note: await transfer.writable.close() is what we want, but TS might complain if 'any'
-        // Just in case:
-        (transfer.writable as any).close().then(() => {
+        try {
+          await (transfer.writable as any).close();
+          console.log('[FileComplete] Writable closed.');
+
           toast.dismiss(data.id);
           toast.success(`Received ${transfer.name}!`);
           playSound('success');
@@ -894,24 +906,37 @@ export class PeerService {
               payload: { id: transfer.id },
             });
           }
-        });
+        } catch (hErr) {
+          console.error("[FileComplete] Handle close error", hErr);
+          throw hErr;
+        }
       } else {
+        console.log('[FileComplete] Starting RAM assembly...');
         // Reassemble from RAM chunks (Legacy/Fallback)
-        // 1. Sort chunks by offset to ensure correct order
-        transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+        if (!transfer.chunks || transfer.chunks.length === 0) {
+          console.error('[FileComplete] No chunks found in RAM!');
+          // Fallback: Check if we have a Blob from single-chunk logic? No, we push to chunks.
+          // But maybe we can recover? No.
+        } else {
+          // 1. Sort chunks by offset to ensure correct order
+          transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+          console.log('[FileComplete] Chunks sorted.');
 
-        // 2. Create Blob
-        const blob = new Blob(transfer.chunks.map((c: any) => c.data), { type: transfer.type });
-        const url = URL.createObjectURL(blob);
+          // 2. Create Blob
+          const blob = new Blob(transfer.chunks.map((c: any) => c.data), { type: transfer.type });
+          console.log(`[FileComplete] Blob created. Size: ${blob.size}. Type: ${transfer.type}`);
+          const url = URL.createObjectURL(blob);
 
-        // 3. Trigger Download
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = transfer.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+          // 3. Trigger Download
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = transfer.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('[FileComplete] Download triggered via anchor click.');
+        }
 
         toast.dismiss(data.id);
         toast.success(`Received ${transfer.name}!`);
@@ -933,8 +958,8 @@ export class PeerService {
       }
     } catch (e) {
       console.error("File finalization error:", e);
+      toast.error(`Error saving ${transfer.name}`);
     }
-    return Promise.resolve();
   }
 
   // Event handling
