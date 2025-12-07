@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock } from 'lucide-react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock, Settings } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import { WelcomeDialog } from './components/WelcomeDialog'; // Phase 2
 import { SoundToggle } from './components/SoundToggle';
 import { Chat } from './components/Chat';
 import { HistoryDialog } from './components/HistoryDialog';
+import { SettingsDialog } from './components/SettingsDialog';
 import { DragDropOverlay } from './components/DragDropOverlay';
 import { analytics } from './utils/analytics';
 
@@ -41,6 +42,7 @@ function App() {
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [targetPeerId, setTargetPeerId] = useState('');
 
   // Logic to show welcome dialog: if no username
@@ -206,6 +208,15 @@ function App() {
                 title="Transfer History"
               >
                 <Clock className="w-5 h-5" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowSettings(true)}
+                className="p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-cyan-400 transition-colors"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5" />
               </motion.button>
               <SoundToggle />
             </div>
@@ -408,6 +419,16 @@ function App() {
             isOpen={showChat}
             onClose={() => setShowChat(false)}
             onClear={() => { }} // TODO: Add clear functionality
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSettings && (
+          <SettingsDialog
+            isOpen={showSettings}
+            onClose={() => setShowSettings(false)}
+            currentPeerId={peerId}
           />
         )}
       </AnimatePresence>
