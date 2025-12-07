@@ -582,14 +582,14 @@ export class PeerService {
             totalSize: metadata.size,
           },
         });
+        // Accurate Progress Calculation: Subtract buffered amount
+        const buffered = (currentConn.bufferedAmount || 0);
+        const actuallySent = Math.max(0, offset - buffered);
 
-        // Ensure we handle typed arrays correctly
-        offset += value.byteLength;
-
-        const progress = Math.round((offset / metadata.size) * 100);
+        const progress = Math.round((actuallySent / metadata.size) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = (offset - startingOffset) / elapsed;
-        const remainingBytes = metadata.size - offset;
+        const speed = (actuallySent - startingOffset) / elapsed;
+        const remainingBytes = metadata.size - actuallySent;
         const eta = speed > 0 ? remainingBytes / speed : 0;
 
         this.emit('file-progress', {
@@ -597,6 +597,24 @@ export class PeerService {
           progress,
           speed,
           eta,
+          status: 'sending'
+        });
+      }
+
+      // Final Drain: Wait for buffer to clear before declaring "Sent"
+      let drainRetries = 0;
+      const currentConn = conn as any;
+      while (currentConn.bufferedAmount > 0 && drainRetries < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        drainRetries++;
+
+        // Update progress during drain
+        const buffered = (currentConn.bufferedAmount || 0);
+        const actuallySent = Math.max(0, offset - buffered);
+        const progress = Math.round((actuallySent / metadata.size) * 100);
+        this.emit('file-progress', {
+          id: transfer.id,
+          progress,
           status: 'sending'
         });
       }
