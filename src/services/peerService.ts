@@ -897,8 +897,30 @@ export class PeerService {
         });
       } else {
         // Reassemble from RAM chunks (Legacy/Fallback)
+        // 1. Sort chunks by offset to ensure correct order
+        transfer.chunks.sort((a: any, b: any) => a.offset - b.offset);
+
+        // 2. Create Blob
+        const blob = new Blob(transfer.chunks.map((c: any) => c.data), { type: transfer.type });
+        const url = URL.createObjectURL(blob);
+
+        // 3. Trigger Download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = transfer.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
         toast.dismiss(data.id);
-        toast.success(`Received ${transfer.name} (RAM)!`);
+        toast.success(`Received ${transfer.name}!`);
+        playSound('success');
+
+        // Update status for History/UI
+        transfer.status = 'completed';
+        transfer.progress = 100;
+        this.emit('file-received', transfer);
 
         // Send ACK
         const conn = this.connections.get(peerId);
