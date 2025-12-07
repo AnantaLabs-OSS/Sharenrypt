@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server } from 'lucide-react';
+import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Palette, Monitor, Moon, Sun } from 'lucide-react';
 import { settingsService, CustomIceServer } from '../services/settingsService';
 import toast from 'react-hot-toast';
+import { useTheme } from '../context/ThemeContext';
 
 interface SettingsDialogProps {
     isOpen: boolean;
@@ -12,10 +13,11 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialogProps) {
-    const [activeTab, setActiveTab] = useState<'identity' | 'network'>('identity');
+    const [activeTab, setActiveTab] = useState<'identity' | 'network' | 'appearance'>('identity');
     const [isLocked, setIsLocked] = useState(false);
     const [customServers, setCustomServers] = useState<CustomIceServer[]>([]);
     const [newServer, setNewServer] = useState<CustomIceServer>({ urls: '' });
+    const { theme, setTheme } = useTheme();
 
     useEffect(() => {
         if (isOpen) {
@@ -94,10 +96,16 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                         Identity
                     </button>
                     <button
+                        onClick={() => setActiveTab('appearance')}
+                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'appearance' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        Appearance
+                    </button>
+                    <button
                         onClick={() => setActiveTab('network')}
                         className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'network' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
                     >
-                        Network (ICE)
+                        Network
                     </button>
                 </div>
 
@@ -122,6 +130,48 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                                 <p className="text-xs text-blue-600 dark:text-blue-300 leading-relaxed">
                                     <strong>Note:</strong> Locking your ID saves it to this browser. If you clear cache or use a different device, your ID will change.
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'appearance' && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <h3 className="text-foreground font-medium mb-1 flex items-center gap-2">
+                                    <Palette className="w-4 h-4 text-primary" />
+                                    Theme
+                                </h3>
+                                <p className="text-sm text-muted-foreground mb-4">Choose how Sharencrypt looks.</p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <button
+                                        onClick={() => setTheme('light')}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'light'
+                                            ? 'bg-primary/10 border-primary text-primary'
+                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
+                                    >
+                                        <Sun className="w-4 h-4" />
+                                        <span>Light</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setTheme('dark')}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'dark'
+                                            ? 'bg-primary/10 border-primary text-primary'
+                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
+                                    >
+                                        <Moon className="w-4 h-4" />
+                                        <span>Dark</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setTheme('system')}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'system'
+                                            ? 'bg-primary/10 border-primary text-primary'
+                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
+                                    >
+                                        <Monitor className="w-4 h-4" />
+                                        <span>System</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
