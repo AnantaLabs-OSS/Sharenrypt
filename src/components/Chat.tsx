@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare, X, Minus, Trash2, Check, CheckCheck } from 'lucide-react';
@@ -56,26 +57,26 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                 : 'bottom-4 right-4 w-80 sm:w-96 h-[500px]'
                 }`}
         >
-            <div className="glass-panel w-full h-full flex flex-col rounded-t-xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="bg-card w-full h-full flex flex-col rounded-t-xl overflow-hidden shadow-2xl border border-border">
                 {/* Header */}
                 <div
-                    className="p-3 bg-white/5 border-b border-white/5 flex items-center justify-between cursor-pointer"
+                    className="p-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"
                     onClick={() => setIsMinimized(!isMinimized)}
                 >
-                    <div className="flex items-center space-x-2 text-cyan-400">
+                    <div className="flex items-center space-x-2 text-primary">
                         <MessageSquare className="w-5 h-5" />
-                        <h3 className="font-semibold text-slate-100">Encrypted Chat</h3>
+                        <h3 className="font-semibold text-foreground">Encrypted Chat</h3>
                     </div>
                     <div className="flex items-center space-x-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-                            className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white"
+                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
                         >
                             <Minus className="w-4 h-4" />
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); onClose(); }}
-                            className="p-1 hover:bg-rose-500/20 rounded text-slate-400 hover:text-rose-400"
+                            className="p-1 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -86,9 +87,9 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                 {!isMinimized && (
                     <>
                         {/* Messages Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-slate-950/30">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-background">
                             {messages.length === 0 ? (
-                                <div className="text-center text-slate-500 mt-10 text-sm">
+                                <div className="text-center text-muted-foreground mt-10 text-sm">
                                     <p>No messages yet.</p>
                                     <p>Start a secure conversation.</p>
                                 </div>
@@ -102,27 +103,27 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                                     >
                                         <div
                                             className={`max-w-[85%] px-4 py-2 rounded-2xl text-sm ${msg.self
-                                                ? 'bg-cyan-600/80 text-white rounded-tr-sm shadow-lg shadow-cyan-500/10'
-                                                : 'bg-slate-700/50 text-slate-200 rounded-tl-sm border border-slate-600/50'
+                                                ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-md'
+                                                : 'bg-muted text-foreground rounded-tl-sm border border-border'
                                                 }`}
                                         >
                                             {!msg.self && (
-                                                <div className="text-[10px] text-cyan-400 mb-1 font-bold">
+                                                <div className="text-[10px] text-primary mb-1 font-bold opacity-80">
                                                     {connections.find(c => c.id === msg.peerId)?.username || msg.peerId.substring(0, 8)}
                                                 </div>
                                             )}
                                             {msg.text}
 
-                                            <div className={`flex items-center justify-end space-x-1 mt-1 ${msg.self ? 'text-cyan-100/70' : 'text-slate-400'}`}>
+                                            <div className={`flex items-center justify-end space-x-1 mt-1 ${msg.self ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                                                 <span className="text-[10px]">
                                                     {new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                                 {msg.self && (
                                                     <span className="" title={msg.status}>
                                                         {msg.status === 'read' ? (
-                                                            <CheckCheck className="w-3 h-3 text-cyan-300" />
+                                                            <CheckCheck className="w-3 h-3 text-current" />
                                                         ) : (
-                                                            <Check className="w-3 h-3 text-white/50" />
+                                                            <Check className="w-3 h-3 text-current/50" />
                                                         )}
                                                     </span>
                                                 )}
@@ -135,21 +136,21 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                         </div>
 
                         {/* Input Area */}
-                        <form onSubmit={handleSend} className="p-3 bg-white/5 border-t border-white/5">
+                        <form onSubmit={handleSend} className="p-3 bg-muted/20 border-t border-border">
                             <div className="flex items-center space-x-2">
                                 <input
                                     type="text"
                                     value={inputText}
                                     onChange={(e) => setInputText(e.target.value)}
                                     placeholder="Type a message..."
-                                    className="glass-input flex-1 py-2 px-3 text-sm rounded-full"
+                                    className="flex-1 py-2 px-3 text-sm rounded-full bg-background border border-input focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-muted-foreground/50"
                                 />
                                 <motion.button
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     type="submit"
                                     disabled={!inputText.trim()}
-                                    className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    className="p-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
                                     <Send className="w-4 h-4" />
                                 </motion.button>

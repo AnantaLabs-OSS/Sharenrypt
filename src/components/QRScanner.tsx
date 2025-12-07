@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Camera, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -114,22 +115,22 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-background/90 backdrop-blur-md flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
-        className="glass-panel w-full max-w-md mx-auto overflow-hidden rounded-2xl border border-cyan-500/20 shadow-cyan-500/10 shadow-2xl"
+        className="w-full max-w-md mx-auto overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 bg-white/5 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-cyan-400">
+        <div className="p-4 bg-muted/20 border-b border-border flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-primary">
             <Camera className="w-5 h-5" />
-            <h3 className="text-lg font-semibold text-slate-100">Scan QR Code</h3>
+            <h3 className="text-lg font-semibold text-foreground">Scan QR Code</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -137,11 +138,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
         <div className="p-6">
           {permissionDenied ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <div className="bg-rose-500/10 rounded-full p-4 mb-4 border border-rose-500/20">
-                <AlertCircle className="w-10 h-10 text-rose-500" />
+              <div className="bg-destructive/10 rounded-full p-4 mb-4 border border-destructive/20">
+                <AlertCircle className="w-10 h-10 text-destructive" />
               </div>
-              <h3 className="text-lg font-medium text-slate-200 mb-2">Camera Access Required</h3>
-              <p className="text-slate-400 text-center mb-6 text-sm">
+              <h3 className="text-lg font-medium text-foreground mb-2">Camera Access Required</h3>
+              <p className="text-muted-foreground text-center mb-6 text-sm">
                 Please allow camera access to scan QR codes.
               </p>
               <div className="flex space-x-3 w-full">
@@ -149,7 +150,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleRetry}
-                  className="flex-1 glass-button-primary flex items-center justify-center space-x-2"
+                  className="flex-1 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg flex items-center justify-center space-x-2"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Try Again</span>
@@ -158,7 +159,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onClose}
-                  className="flex-1 glass-button-secondary"
+                  className="flex-1 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border"
                 >
                   Cancel
                 </motion.button>
@@ -166,19 +167,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="relative aspect-square w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700/50">
+              <div className="relative aspect-square w-full bg-black rounded-xl overflow-hidden border border-border">
                 <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" />
 
                 {/* Scanner Overlay UI */}
-                <div className="absolute inset-0 border-[40px] border-slate-950/60 pointer-events-none">
-                  <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-lg animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.3)]"></div>
+                <div className="absolute inset-0 border-[40px] border-black/60 pointer-events-none">
+                  <div className="absolute inset-0 border-2 border-primary/50 rounded-lg animate-pulse shadow-[0_0_15px_rgba(var(--primary),0.3)]"></div>
                   {/* Scanning Line */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-cyan-400 shadow-[0_0_10px_#22d3ee] animate-[scan_2s_linear_infinite]" />
+                  <div className="absolute top-0 left-0 w-full h-1 bg-primary shadow-[0_0_10px_rgba(var(--primary))] animate-[scan_2s_linear_infinite]" />
                 </div>
 
                 {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm z-20">
-                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-20">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
                   </div>
                 )}
               </div>
@@ -189,7 +190,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={toggleFlash}
-                    className={`flex-1 glass-button ${flashOn ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' : 'bg-slate-800/50 text-slate-400 border-slate-700'}`}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border ${flashOn ? 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 dark:text-yellow-300' : 'bg-muted/50 text-muted-foreground border-border'}`}
                   >
                     {flashOn ? 'Flash On' : 'Flash Off'}
                   </motion.button>
@@ -199,14 +200,14 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onClose}
-                  className="flex-1 glass-button-secondary"
+                  className="flex-1 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border"
                 >
                   Cancel
                 </motion.button>
               </div>
 
               {error && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-xs text-center">
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs text-center">
                   {error}
                 </div>
               )}

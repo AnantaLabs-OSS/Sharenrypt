@@ -3,6 +3,7 @@ import Peer, { DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import toast from 'react-hot-toast';
 import { playSound } from '../../utils/sounds';
+import { settingsService } from '../../services/settingsService';
 
 // Configuration
 const ICE_SERVERS = [
@@ -34,20 +35,31 @@ export class ConnectionManager extends EventEmitter {
         this.initializePeer();
     }
 
+
+
     private initializePeer(): void {
         try {
-            this.peerId = nanoid();
+            // Check for saved Peer ID
+            const savedId = settingsService.getSavedPeerId();
+            this.peerId = savedId || nanoid();
+
+            // Merge default ICE servers with custom user servers
+            const customIceServers = settingsService.getIceServers();
+            const combiniceServers = [...ICE_SERVERS, ...customIceServers];
+
             this.peer = new Peer(this.peerId, {
                 host: import.meta.env.VITE_PEER_HOST || '0.peerjs.com',
                 port: Number(import.meta.env.VITE_PEER_PORT) || 443,
                 path: import.meta.env.VITE_PEER_PATH || '/',
                 secure: import.meta.env.VITE_PEER_SECURE !== 'false',
                 config: {
-                    iceServers: ICE_SERVERS,
+                    iceServers: combiniceServers,
                     iceCandidatePoolSize: 10,
                 },
                 debug: 2,
             });
+
+
 
             this.setupPeerEvents();
         } catch (error: any) {
