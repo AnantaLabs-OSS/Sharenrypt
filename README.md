@@ -33,6 +33,7 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 ✅ **Progress Visualizations** - Real-time speed (MB/s) and ETA ⏱️  
 ✅ **Privacy-First Analytics** - Opt-in tracking for usage stats (configurable) 📊  
 ✅ **Sound Controls** - Toggleable notification sounds 🔊
+✅ **Transfer History** - View detailed log of sent and received files 📜
 
 ---
 
@@ -96,9 +97,9 @@ graph LR
     A ==>|3. DIRECT P2P Connection| B
     A -.->|4. File Transfer Encrypted| B
     
-    style S fill:#f9f,stroke:#333,stroke-width:2px
-    style A fill:#bfb,stroke:#333,stroke-width:2px
-    style B fill:#bfb,stroke:#333,stroke-width:2px
+    style S fill:#FFB74D,stroke:#E65100,stroke-width:2px,color:#000
+    style A fill:#4FC3F7,stroke:#01579B,stroke-width:2px,color:#000
+    style B fill:#4FC3F7,stroke:#01579B,stroke-width:2px,color:#000
 ```
 
 ### Connection Flow
@@ -265,7 +266,11 @@ Sharencrypt/
 │   ├── hooks/
 │   │   └── usePeerConnection.ts  # React hook for P2P logic
 │   ├── services/
-│   │   └── peerService.ts      # WebRTC P2P service (660 lines)
+    ├── services/
+    │   ├── peer/
+    │   │   ├── ConnectionManager.ts
+    │   │   └── TransferManager.ts
+    │   └── peerService.ts      # WebRTC Facade Service
 │   ├── utils/
 │   │   ├── encryption.ts       # AES-GCM encryption
 │   │   └── sounds.ts           # Audio feedback
