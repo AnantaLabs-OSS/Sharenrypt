@@ -540,6 +540,9 @@ export class PeerService {
 
       const reader = stream.getReader();
 
+      const currentConn = conn as any;
+      const getBuffered = () => (currentConn.dataChannel?.bufferedAmount ?? currentConn.bufferedAmount ?? 0);
+
       const encryptChunk = (chunk: ArrayBuffer, key: CryptoKey, iv: Uint8Array): Promise<ArrayBuffer> => {
         return new Promise((resolve, reject) => {
           const handler = (e: MessageEvent) => {
@@ -560,8 +563,7 @@ export class PeerService {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const currentConn = conn as any;
-        while (currentConn.bufferedAmount > 1024 * 1024) {
+        while (getBuffered() > 1024 * 1024) {
           await new Promise(r => setTimeout(r, 10));
         }
 
@@ -583,7 +585,7 @@ export class PeerService {
           },
         });
         // Accurate Progress Calculation: Subtract buffered amount
-        const buffered = (currentConn.bufferedAmount || 0);
+        const buffered = getBuffered();
         const actuallySent = Math.max(0, offset - buffered);
 
         const progress = Math.round((actuallySent / metadata.size) * 100);
@@ -592,31 +594,28 @@ export class PeerService {
         const remainingBytes = metadata.size - actuallySent;
         const eta = speed > 0 ? remainingBytes / speed : 0;
 
+        /* 
+        // Local Estimation DISABLED: Relying on Receiver Feedback
         this.emit('file-progress', {
           id: transfer.id,
-          progress,
-          speed,
-          eta,
+          progress: 0, // Keep 0 until feedback
           status: 'sending'
         });
+        */
       }
 
       // Final Drain: Wait for buffer to clear before declaring "Sent"
       let drainRetries = 0;
-      const currentConn = conn as any;
-      while (currentConn.bufferedAmount > 0 && drainRetries < 30) {
+      while (getBuffered() > 0 && drainRetries < 60) {
         await new Promise(r => setTimeout(r, 100));
         drainRetries++;
 
         // Update progress during drain
-        const buffered = (currentConn.bufferedAmount || 0);
+        const buffered = getBuffered();
         const actuallySent = Math.max(0, offset - buffered);
         const progress = Math.round((actuallySent / metadata.size) * 100);
-        this.emit('file-progress', {
-          id: transfer.id,
-          progress,
-          status: 'sending'
-        });
+        // Drain Loop (Silent): Ensure buffer clears but don't update UI locally
+        // The receiver will send 100% when they get it.
       }
 
       worker.terminate();
@@ -709,7 +708,7 @@ export class PeerService {
         this.handleFileStart(message.payload, true);
         break;
       case 'file-chunk':
-        this.handleFileChunk(message.payload);
+        this.handleFileChunk(message.payload, peerId);
         break;
       case 'file-complete':
         this.handleFileComplete(message.payload, peerId);
@@ -732,6 +731,16 @@ export class PeerService {
         this.emit('message-read', {
           peerId,
           messageId: message.payload.messageId
+        });
+        break;
+      case 'progress-sync':
+        // SENDER SIDE: Receive progress from Receiver
+        this.emit('file-progress', {
+          id: message.payload.id,
+          progress: message.payload.progress,
+          speed: message.payload.speed,
+          eta: message.payload.eta,
+          status: 'sending'
         });
         break;
       default:
@@ -813,7 +822,7 @@ export class PeerService {
     }
   }
 
-  private async handleFileChunk(data: any): Promise<void> {
+  private async handleFileChunk(data: any, peerId: string): Promise<void> {
     // data: { id, chunk, iv, offset, totalSize }
     const transfer = this.incomingTransfers.get(data.id);
     if (!transfer || !transfer.cryptoKey) return;
@@ -856,6 +865,25 @@ export class PeerService {
         eta,
         status: 'downloading',
       });
+
+      // FEEDBACK: Send progress back to sender (Throttle: 500ms)
+      const now = Date.now();
+      if (!transfer.lastFeedbackTime || now - transfer.lastFeedbackTime > 500 || progress === 100) {
+        transfer.lastFeedbackTime = now;
+        const conn = this.connections.get(peerId); // We need peerId here!
+        if (conn) {
+          conn.send({
+            type: 'progress-sync',
+            payload: {
+              id: transfer.id,
+              progress,
+              speed,
+              eta
+            }
+          });
+        }
+      }
+
     } catch (e) {
       console.error("Chunk decryption failed", e);
     }
