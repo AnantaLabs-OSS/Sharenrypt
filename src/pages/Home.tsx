@@ -164,19 +164,11 @@ export function Home() {
                         color: 'hsl(var(--popover-foreground))',
                     },
                 }}
+                containerStyle={{
+                    top: 60,
+                    zIndex: 99999
+                }}
             />
-
-            <AnimatePresence>
-                {pendingConnections.map((request) => (
-                    <ConnectionRequest
-                        key={request.id}
-                        peerId={request.id}
-                        username={request.username}
-                        onAccept={() => acceptConnection(request.id)}
-                        onReject={() => rejectConnection(request.id)}
-                    />
-                ))}
-            </AnimatePresence>
 
             <DragDropOverlay onFileDrop={handleFileDrop} isConnect={connections.length > 0} />
 

@@ -9,9 +9,12 @@ import { settingsService } from '../../services/settingsService';
 const ICE_SERVERS = [
     { urls: import.meta.env.VITE_STUN_SERVER_1 || 'stun:stun.l.google.com:19302' },
     { urls: import.meta.env.VITE_STUN_SERVER_2 || 'stun:global.stun.twilio.com:3478' },
-    { urls: import.meta.env.VITE_STUN_SERVER_3 },
+    { urls: import.meta.env.VITE_STUN_SERVER_3 || 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     {
-        urls: import.meta.env.VITE_TURN_SERVER,
+        urls: import.meta.env.VITE_TURN_SERVER || 'turn:openrelay.metered.ca:80',
         username: import.meta.env.VITE_TURN_USERNAME || 'openrelayproject',
         credential: import.meta.env.VITE_TURN_CREDENTIAL || 'openrelayproject',
     },
@@ -220,7 +223,7 @@ export class ConnectionManager extends EventEmitter {
                     toast.error('Connection timeout');
                     this.connectionStatus = 'failed';
                     resolve(false);
-                }, 15000);
+                }, 45000);
 
                 conn.on('open', () => {
                     clearTimeout(timeout);
@@ -299,8 +302,20 @@ export class ConnectionManager extends EventEmitter {
         this.setupDataListeners(conn, peerId);
         this.emit('new-connection', { peerId, conn });
 
-        this.sendHandshake(conn, peerId);
-        toast.loading(`Accepting connection...`, { id: 'accepting' });
+        const initiateHandshake = () => {
+            this.sendHandshake(conn, peerId);
+            toast.loading(`Accepting connection...`, { id: 'accepting' });
+        };
+
+        if (conn.open) {
+            initiateHandshake();
+        } else {
+            console.log('Connection not yet open, waiting for open event...');
+            conn.on('open', () => {
+                console.log('Connection opened via accept, sending handshake...');
+                initiateHandshake();
+            });
+        }
 
         const handshakeHandler = (data: DeviceInfo) => {
             if (data.peerId === peerId) {
