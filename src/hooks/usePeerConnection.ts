@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { PeerService } from '../services/peerService';
 import { FileTransfer, PeerConnection } from '../types';
 import { HistoryService } from '../services/historyService';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 
 // Create singleton instance
 let peerServiceInstance: PeerService | null = null;
@@ -34,6 +35,19 @@ export const usePeerConnection = () => {
   useEffect(() => {
     localStorage.setItem('sharencrypt_chat_history', JSON.stringify(messages.slice(-100)));
   }, [messages]);
+
+  // Keep Awake during transfers
+  useEffect(() => {
+    const isTransferring = files.some(f =>
+      ['transferring', 'downloading', 'encrypting', 'sending', 'waiting'].includes(f.status)
+    );
+
+    if (isTransferring) {
+      KeepAwake.keepAwake().catch(() => { });
+    } else {
+      KeepAwake.allowSleep().catch(() => { });
+    }
+  }, [files]);
 
   useEffect(() => {
     // Initialize PeerService once

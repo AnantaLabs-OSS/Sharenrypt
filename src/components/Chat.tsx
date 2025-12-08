@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MessageSquare, X, Minus, Trash2, Check, CheckCheck } from 'lucide-react';
+import { Send, MessageSquare, X, Minus, Trash2, Check, CheckCheck, ChevronDown } from 'lucide-react';
 
 interface ChatProps {
     messages: { id: string; peerId: string; text: string; self?: boolean; time: number; status?: 'sent' | 'delivered' | 'read' }[];
@@ -83,6 +83,12 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                     onClick={() => setIsMinimized(!isMinimized)}
                 >
                     <div className="flex items-center space-x-2 text-primary">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onClose(); }}
+                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground sm:hidden mr-1"
+                        >
+                            <ChevronDown className="w-5 h-5" />
+                        </button>
                         <MessageSquare className="w-5 h-5" />
                         <h3 className="font-semibold text-foreground">Encrypted Chat</h3>
                         {isMinimized && unreadCount > 0 && (
