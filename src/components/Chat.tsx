@@ -79,16 +79,10 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
             <div className="bg-card w-full h-full flex flex-col sm:rounded-t-xl overflow-hidden shadow-2xl border border-border">
                 {/* Header */}
                 <div
-                    className="p-3 pt-12 sm:pt-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"
+                    className="p-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"
                     onClick={() => setIsMinimized(!isMinimized)}
                 >
                     <div className="flex items-center space-x-2 text-primary">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onClose(); }}
-                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground sm:hidden mr-1"
-                        >
-                            <ChevronDown className="w-5 h-5" />
-                        </button>
                         <MessageSquare className="w-5 h-5" />
                         <h3 className="font-semibold text-foreground">Encrypted Chat</h3>
                         {isMinimized && unreadCount > 0 && (
@@ -116,6 +110,17 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                 {/* Content */}
                 {!isMinimized && (
                     <>
+                        {/* Mobile Close Button (In Body) */}
+                        <div className="sm:hidden p-2 bg-background border-b border-border">
+                            <button
+                                onClick={onClose}
+                                className="w-full flex items-center justify-center space-x-2 p-2 bg-secondary/50 hover:bg-secondary text-secondary-foreground rounded-lg transition-colors"
+                            >
+                                <ChevronDown className="w-4 h-4" />
+                                <span className="text-sm font-medium">Close Chat</span>
+                            </button>
+                        </div>
+
                         {/* Messages Area */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-background">
                             {messages.length === 0 ? (
