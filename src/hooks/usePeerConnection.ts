@@ -19,22 +19,8 @@ export const usePeerConnection = () => {
 
   const peerServiceRef = useRef<PeerService | null>(null);
 
-  // Load chat history on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('sharencrypt_chat_history');
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse chat history', e);
-      }
-    }
-  }, []);
+  // No persistence for chat (Ephemeral)
 
-  // Save chat history
-  useEffect(() => {
-    localStorage.setItem('sharencrypt_chat_history', JSON.stringify(messages.slice(-100)));
-  }, [messages]);
 
   // Keep Awake during transfers
   useEffect(() => {
@@ -93,6 +79,8 @@ export const usePeerConnection = () => {
 
     const handleDisconnection = (data: { peerId: string }) => {
       setConnections(prev => prev.filter(conn => conn.id !== data.peerId));
+      // Clear messages on disconnection for privacy
+      setMessages([]);
     };
 
     const handleConnectionRequest = (data: { peerId: string; username?: string }) => {

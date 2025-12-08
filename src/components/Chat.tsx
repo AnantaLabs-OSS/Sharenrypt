@@ -79,7 +79,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
             <div className="bg-card w-full h-full flex flex-col sm:rounded-t-xl overflow-hidden shadow-2xl border border-border">
                 {/* Header */}
                 <div
-                    className="p-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"
+                    className="p-3 pt-12 sm:pt-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"
                     onClick={() => setIsMinimized(!isMinimized)}
                 >
                     <div className="flex items-center space-x-2 text-primary">
