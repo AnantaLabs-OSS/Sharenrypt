@@ -73,10 +73,10 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className={`fixed z-40 transition-all duration-300 ${isMinimized
                 ? 'bottom-4 right-4 w-72 h-14'
-                : 'bottom-4 right-4 w-80 sm:w-96 h-[500px]'
+                : 'inset-0 sm:inset-auto sm:bottom-4 sm:right-4 w-full h-full sm:w-96 sm:h-[500px]'
                 }`}
         >
-            <div className="bg-card w-full h-full flex flex-col rounded-t-xl overflow-hidden shadow-2xl border border-border">
+            <div className="bg-card w-full h-full flex flex-col sm:rounded-t-xl overflow-hidden shadow-2xl border border-border">
                 {/* Header */}
                 <div
                     className="p-3 bg-primary/5 border-b border-border flex items-center justify-between cursor-pointer hover:bg-primary/10 transition-colors"

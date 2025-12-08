@@ -328,7 +328,7 @@ export function Home() {
                                 {connections.length > 0 && (
                                     <button
                                         onClick={() => setShowChat(true)}
-                                        className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all flex items-center justify-center gap-2 relative"
+                                        className="hidden sm:flex w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all items-center justify-center gap-2 relative"
                                     >
                                         <MessageSquare className="w-4 h-4" />
                                         Open Chat
@@ -341,6 +341,23 @@ export function Home() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Floating Action Button (Mobile Only) */}
+                        {connections.length > 0 && (
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => setShowChat(true)}
+                                className="fixed bottom-24 right-6 p-4 bg-primary text-primary-foreground rounded-full shadow-lg sm:hidden z-30"
+                            >
+                                <MessageSquare className="w-6 h-6" />
+                                {!showChat && unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </motion.button>
+                        )}
                     </div>
 
                     {/* Right Content: File Transfer */}
