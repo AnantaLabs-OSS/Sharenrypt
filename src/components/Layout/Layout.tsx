@@ -6,7 +6,7 @@ import { Footer } from './Footer';
 
 export function Layout() {
     return (
-        <div className="flex flex-col min-h-screen bg-background font-sans text-foreground transition-colors duration-300 relative">
+        <div className="flex flex-col min-h-[100dvh] bg-background font-sans text-foreground transition-colors duration-300 relative">
             {/* Aurora Background Layer */}
             <div className="aurora-bg">
                 <div className="aurora-blob aurora-blob-1" />
@@ -15,8 +15,8 @@ export function Layout() {
             </div>
 
             <Header />
-            {/* Add padding-top to account for fixed header */}
-            <main className="flex-1 pt-16 relative z-10">
+            {/* Add padding-top to account for fixed header + safe area */}
+            <main className="flex-1 pt-[calc(4rem+env(safe-area-inset-top))] relative z-10">
                 <Outlet />
             </main>
             <Footer />

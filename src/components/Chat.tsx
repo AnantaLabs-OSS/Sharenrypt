@@ -11,12 +11,18 @@ interface ChatProps {
     isOpen: boolean;
     onClose: () => void;
     onClear: () => void;
+    typingStatus?: Record<string, boolean>;
+    onSendTyping?: (isTyping: boolean) => void;
 }
 
-export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage, onMarkAsRead, isOpen, onClose, onClear }) => {
+export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage, onMarkAsRead, isOpen, onClose, onClear, typingStatus, onSendTyping }) => {
     const [inputText, setInputText] = useState('');
     const [isMinimized, setIsMinimized] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Calculate unread count
+    const unreadCount = messages.filter(m => !m.self && m.status !== 'read').length;
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -24,7 +30,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, isOpen, isMinimized]);
+    }, [messages, isOpen, isMinimized, typingStatus]);
 
     // Effect to mark messages as read when chat is open
     useEffect(() => {
@@ -42,6 +48,19 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
         if (inputText.trim()) {
             onSendMessage(inputText.trim());
             setInputText('');
+            if (onSendTyping) onSendTyping(false);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputText(e.target.value);
+        if (onSendTyping) {
+            onSendTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+                onSendTyping(false);
+            }, 2000);
         }
     };
 
@@ -66,6 +85,11 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                     <div className="flex items-center space-x-2 text-primary">
                         <MessageSquare className="w-5 h-5" />
                         <h3 className="font-semibold text-foreground">Encrypted Chat</h3>
+                        {isMinimized && unreadCount > 0 && (
+                            <span className="bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 rounded-full animate-bounce">
+                                {unreadCount}
+                            </span>
+                        )}
                     </div>
                     <div className="flex items-center space-x-1">
                         <button
@@ -132,6 +156,23 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                                     </motion.div>
                                 ))
                             )}
+
+                            {/* Typing Indicator */}
+                            {typingStatus && Object.values(typingStatus).some(Boolean) && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="flex items-center space-x-2 text-muted-foreground text-xs px-2"
+                                >
+                                    <div className="flex space-x-1">
+                                        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce delay-0" />
+                                        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce delay-150" />
+                                        <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce delay-300" />
+                                    </div>
+                                    <span>Typing...</span>
+                                </motion.div>
+                            )}
+
                             <div ref={messagesEndRef} />
                         </div>
 
@@ -141,7 +182,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                                 <input
                                     type="text"
                                     value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
+                                    onChange={handleInputChange}
                                     placeholder="Type a message..."
                                     className="flex-1 py-2 px-3 text-sm rounded-full bg-background border border-input focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-muted-foreground/50"
                                 />

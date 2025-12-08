@@ -57,6 +57,16 @@ export class TransferManager extends EventEmitter {
         this.sendFile(peerId, file, lastOffset);
     }
 
+    public sendTypingStatus(targetPeerId: string, isTyping: boolean): void {
+        const conn = this.connectionManager.getConnection(targetPeerId);
+        if (conn && conn.open) {
+            conn.send({
+                type: isTyping ? 'typing-start' : 'typing-end',
+                payload: {}
+            });
+        }
+    }
+
     public sendTextMessage(targetPeerId: string, text: string): string | null {
         const conn = this.connectionManager.getConnection(targetPeerId);
         if (!conn || !conn.open) {
@@ -69,6 +79,7 @@ export class TransferManager extends EventEmitter {
             type: 'text-message',
             payload: { id, text }
         });
+        playSound('message'); // Play sent sound
         return id;
     }
 
@@ -256,6 +267,14 @@ export class TransferManager extends EventEmitter {
                     text: message.payload.text,
                     id: message.payload.id
                 });
+
+                playSound('message'); // Play received sound
+                break;
+            case 'typing-start':
+                this.emit('typing-start', { peerId });
+                break;
+            case 'typing-end':
+                this.emit('typing-end', { peerId });
                 break;
             case 'message-read':
                 this.emit('message-read', {

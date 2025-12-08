@@ -7,8 +7,8 @@ import { settingsService } from '../../services/settingsService';
 
 // Configuration
 const ICE_SERVERS = [
-    { urls: import.meta.env.VITE_STUN_SERVER_1 },
-    { urls: import.meta.env.VITE_STUN_SERVER_2 },
+    { urls: import.meta.env.VITE_STUN_SERVER_1 || 'stun:stun.l.google.com:19302' },
+    { urls: import.meta.env.VITE_STUN_SERVER_2 || 'stun:global.stun.twilio.com:3478' },
     { urls: import.meta.env.VITE_STUN_SERVER_3 },
     {
         urls: import.meta.env.VITE_TURN_SERVER,
@@ -44,20 +44,33 @@ export class ConnectionManager extends EventEmitter {
             this.peerId = savedId || nanoid();
 
             // Merge default ICE servers with custom user servers
+            // Merge default ICE servers with custom user servers
             const customIceServers = settingsService.getIceServers();
             const combiniceServers = [...ICE_SERVERS, ...customIceServers];
 
-            this.peer = new Peer(this.peerId, {
-                host: import.meta.env.VITE_PEER_HOST || '0.peerjs.com',
-                port: Number(import.meta.env.VITE_PEER_PORT) || 443,
-                path: import.meta.env.VITE_PEER_PATH || '/',
-                secure: import.meta.env.VITE_PEER_SECURE !== 'false',
+            const signalingConfig = settingsService.getSignalingServer();
+            const peerConfig: any = {
+                debug: 2,
                 config: {
                     iceServers: combiniceServers,
                     iceCandidatePoolSize: 10,
                 },
-                debug: 2,
-            });
+            };
+
+            if (signalingConfig && signalingConfig.enabled) {
+                console.log('Using custom signaling server:', signalingConfig);
+                peerConfig.host = signalingConfig.host;
+                peerConfig.port = signalingConfig.port;
+                peerConfig.path = signalingConfig.path;
+                peerConfig.secure = signalingConfig.secure;
+            } else {
+                peerConfig.host = import.meta.env.VITE_PEER_HOST || '0.peerjs.com';
+                peerConfig.port = Number(import.meta.env.VITE_PEER_PORT) || 443;
+                peerConfig.path = import.meta.env.VITE_PEER_PATH || '/';
+                peerConfig.secure = import.meta.env.VITE_PEER_SECURE !== 'false';
+            }
+
+            this.peer = new Peer(this.peerId, peerConfig);
 
 
 

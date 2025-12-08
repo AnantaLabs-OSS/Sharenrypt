@@ -35,7 +35,11 @@ export function Home() {
         retryConnection,
         username,
         setUsername,
-        sendZip
+
+        sendZip,
+        typingStatus,
+        sendTyping,
+        markMessageAsRead
     } = usePeerConnection();
 
     const [showQR, setShowQR] = useState(false);
@@ -53,8 +57,10 @@ export function Home() {
     // Initialize Analytics
     React.useEffect(() => {
         analytics.initialize();
-        analytics.trackPageView('/');
     }, []);
+
+    // Calculate global unread count
+    const unreadCount = messages.filter(m => !m.self && m.status !== 'read').length;
 
     const handleConnect = useCallback(() => {
         setShowConnectDialog(true);
@@ -322,10 +328,15 @@ export function Home() {
                                 {connections.length > 0 && (
                                     <button
                                         onClick={() => setShowChat(true)}
-                                        className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all flex items-center justify-center gap-2"
+                                        className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all flex items-center justify-center gap-2 relative"
                                     >
                                         <MessageSquare className="w-4 h-4" />
                                         Open Chat
+                                        {!showChat && unreadCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                                {unreadCount}
+                                            </span>
+                                        )}
                                     </button>
                                 )}
                             </div>
@@ -342,8 +353,8 @@ export function Home() {
                                 </h2>
                                 <label
                                     className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 cursor-pointer transition-all ${connections.length > 0
-                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-                                            : 'bg-muted text-muted-foreground cursor-not-allowed'
+                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                                        : 'bg-muted text-muted-foreground cursor-not-allowed'
                                         }`}
                                 >
                                     <Upload className="w-4 h-4" />
@@ -396,9 +407,16 @@ export function Home() {
                         messages={messages}
                         connections={connections}
                         onSendMessage={handleSendMessage}
+                        onMarkAsRead={markMessageAsRead}
                         isOpen={showChat}
                         onClose={() => setShowChat(false)}
                         onClear={() => { }}
+                        typingStatus={typingStatus}
+                        onSendTyping={(isTyping) => {
+                            if (connections.length > 0) {
+                                connections.forEach(conn => sendTyping(conn.id, isTyping));
+                            }
+                        }}
                     />
                 )}
             </AnimatePresence>

@@ -14,8 +14,26 @@ export const usePeerConnection = () => {
   const [pendingConnections, setPendingConnections] = useState<{ id: string; username?: string }[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
   const [messages, setMessages] = useState<{ id: string; peerId: string; text: string; self?: boolean; time: number; status: 'sent' | 'delivered' | 'read' }[]>([]);
+  const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
   const peerServiceRef = useRef<PeerService | null>(null);
+
+  // Load chat history on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('sharencrypt_chat_history');
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse chat history', e);
+      }
+    }
+  }, []);
+
+  // Save chat history
+  useEffect(() => {
+    localStorage.setItem('sharencrypt_chat_history', JSON.stringify(messages.slice(-100)));
+  }, [messages]);
 
   useEffect(() => {
     // Initialize PeerService once
@@ -170,6 +188,14 @@ export const usePeerConnection = () => {
       ));
     };
 
+    const handleTypingStart = ({ peerId }: { peerId: string }) => {
+      setTypingStatus(prev => ({ ...prev, [peerId]: true }));
+    };
+
+    const handleTypingEnd = ({ peerId }: { peerId: string }) => {
+      setTypingStatus(prev => ({ ...prev, [peerId]: false }));
+    };
+
     // Register event listeners
     peerServiceInstance.on('ready', handleReady);
     peerServiceInstance.on('connection', handleConnection);
@@ -182,6 +208,8 @@ export const usePeerConnection = () => {
     peerServiceInstance.on('file-sent', handleFileSent);
     peerServiceInstance.on('message', handleMessage);
     peerServiceInstance.on('message-read', handleMessageRead);
+    peerServiceInstance.on('typing-start', handleTypingStart);
+    peerServiceInstance.on('typing-end', handleTypingEnd);
 
     // Clean up event listeners on unmount
     return () => {
@@ -197,6 +225,8 @@ export const usePeerConnection = () => {
         peerServiceInstance.off('file-sent', handleFileSent);
         peerServiceInstance.off('message', handleMessage);
         peerServiceInstance.off('message-read', handleMessageRead);
+        peerServiceInstance.off('typing-start', handleTypingStart);
+        peerServiceInstance.off('typing-end', handleTypingEnd);
       }
     };
   }, []);
@@ -282,6 +312,12 @@ export const usePeerConnection = () => {
     }
   }, []);
 
+  const sendTyping = useCallback((targetPeerId: string, isTyping: boolean) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.sendTypingStatus(targetPeerId, isTyping);
+    }
+  }, []);
+
   return {
     peerId,
     username,
@@ -300,6 +336,9 @@ export const usePeerConnection = () => {
     rejectConnection,
     retryConnection,
     setUsername,
-    markMessageAsRead
+
+    markMessageAsRead,
+    typingStatus,
+    sendTyping
   };
 };

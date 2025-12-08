@@ -7,9 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android": "cap open android",
+    "sync": "cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/haptics": "^7.0.2",
+    "@capacitor/keyboard": "^7.0.3",
+    "@capacitor/status-bar": "^7.0.3",
     "client-zip": "^2.5.0",
     "framer-motion": "^11.0.8",
     "html5-qrcode": "^2.3.8",
