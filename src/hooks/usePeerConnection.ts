@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { PeerService } from '../services/peerService';
 import { FileTransfer, PeerConnection } from '../types';
 import { HistoryService } from '../services/historyService';
-import { KeepAwake } from '@capacitor-community/keep-awake';
 
 // Create singleton instance
 let peerServiceInstance: PeerService | null = null;
@@ -20,20 +19,6 @@ export const usePeerConnection = () => {
   const peerServiceRef = useRef<PeerService | null>(null);
 
   // No persistence for chat (Ephemeral)
-
-
-  // Keep Awake during transfers
-  useEffect(() => {
-    const isTransferring = files.some(f =>
-      ['transferring', 'downloading', 'encrypting', 'sending', 'waiting'].includes(f.status)
-    );
-
-    if (isTransferring) {
-      KeepAwake.keepAwake().catch(() => { });
-    } else {
-      KeepAwake.allowSleep().catch(() => { });
-    }
-  }, [files]);
 
   useEffect(() => {
     // Initialize PeerService once
@@ -146,11 +131,6 @@ export const usePeerConnection = () => {
       setFiles(prev => prev.map(file => {
         if (file.id === data.id) {
           const updated = { ...file, ...data };
-          // If status changed to completed (or waiting which is 100%)
-          // We'll use 'completed' if the UI sets it, or we trigger it manually? 
-          // In PeerService, it emits 'waiting' when done sending. Real completion might be explicit ack.
-          // Let's assume 'waiting' with 100% progress is efficient 'Sent' status for now or add 'completed' handling if app sends it.
-          // Actually, let's just log it if we see it.
 
           if (updated.status === 'completed') {
             const peer = connections.find(c => c.id === updated.peerId);

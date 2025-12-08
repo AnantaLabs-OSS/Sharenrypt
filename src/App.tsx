@@ -7,11 +7,9 @@ import { HowToUse } from './pages/HowToUse';
 import { FAQ } from './pages/FAQ';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
-import { useBackButton } from './hooks/useBackButton';
 import { usePageTracking } from './hooks/usePageTracking';
 
 function App() {
-  useBackButton();
   usePageTracking();
 
   return (
