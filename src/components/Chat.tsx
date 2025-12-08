@@ -73,7 +73,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className={`fixed z-40 transition-all duration-300 ${isMinimized
                 ? 'bottom-4 right-4 w-72 h-14'
-                : 'inset-0 sm:inset-auto sm:bottom-4 sm:right-4 w-full h-full sm:w-96 sm:h-[500px]'
+                : 'left-0 right-0 bottom-0 top-16 sm:inset-auto sm:bottom-4 sm:right-4 sm:w-96 sm:h-[500px]'
                 }`}
         >
             <div className="bg-card w-full h-full flex flex-col sm:rounded-t-xl overflow-hidden shadow-2xl border border-border">
@@ -110,17 +110,6 @@ export const Chat: React.FC<ChatProps> = ({ messages, connections, onSendMessage
                 {/* Content */}
                 {!isMinimized && (
                     <>
-                        {/* Mobile Close Button (In Body) */}
-                        <div className="sm:hidden p-2 bg-background border-b border-border">
-                            <button
-                                onClick={onClose}
-                                className="w-full flex items-center justify-center space-x-2 p-2 bg-secondary/50 hover:bg-secondary text-secondary-foreground rounded-lg transition-colors"
-                            >
-                                <ChevronDown className="w-4 h-4" />
-                                <span className="text-sm font-medium">Close Chat</span>
-                            </button>
-                        </div>
-
                         {/* Messages Area */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-background">
                             {messages.length === 0 ? (
