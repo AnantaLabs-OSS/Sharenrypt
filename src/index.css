@@ -39,40 +39,7 @@
     --radius: 0.75rem;
   }
 
-  .dark {
-    /* Authority Slate (Deep Blue) Theme */
-    --background: 222 47% 11%;
-    /* Cloud Base (White) Text */
-    --foreground: 0 0% 100%;
 
-    --card: 222 47% 13%;
-    /* Slightly lighter slate for cards */
-    --card-foreground: 0 0% 100%;
-
-    --popover: 222 47% 13%;
-    --popover-foreground: 0 0% 100%;
-
-    /* White Primary for contrast against Slate */
-    --primary: 0 0% 100%;
-    --primary-foreground: 222 47% 11%;
-
-    /* Action Glow (Emerald Green) */
-    --secondary: 142 71% 45%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20.2% 65%;
-
-    --accent: 217 33% 17%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 142 71% 45%;
-  }
 }
 
 @layer base {
