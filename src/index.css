@@ -15,12 +15,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Authority Slate as Primary - Tuned for Visibility */
-    --primary: 222 47% 20%;
+    /* Logo Deep Navy as Primary */
+    --primary: 210 50% 12%;
     --primary-foreground: 0 0% 100%;
 
-    /* Action Glow (Emerald Green) as Secondary/Accent - Vibrant */
-    --secondary: 142 70% 50%;
+    /* Logo Vibrant Teal as Secondary/Accent */
+    --secondary: 170 80% 40%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 210 40% 96.1%;
