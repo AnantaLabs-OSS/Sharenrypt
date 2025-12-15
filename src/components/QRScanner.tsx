@@ -190,7 +190,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={toggleFlash}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border ${flashOn ? 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 dark:text-yellow-300' : 'bg-muted/50 text-muted-foreground border-border'}`}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium border ${flashOn ? 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30' : 'bg-muted/50 text-muted-foreground border-border'}`}
                   >
                     {flashOn ? 'Flash On' : 'Flash Off'}
                   </motion.button>
