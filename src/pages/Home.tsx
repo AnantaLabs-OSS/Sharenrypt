@@ -190,7 +190,7 @@ export function Home() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Left Sidebar: Identity & Controls - Authority Slate (20%) */}
-                    <div className="lg:col-span-4 space-y-6">
+                    <div className="lg:col-span-4 flex flex-col gap-6 sticky top-6">
 
                         {/* Identity Card */}
                         {/* Identity Card - Light Theme */}
@@ -259,7 +259,7 @@ export function Home() {
 
                         {/* Connection Status Card */}
                         {/* Connection Status Card - Light Theme */}
-                        <div className="bg-white border border-border rounded-2xl shadow-sm p-6 flex flex-col h-full min-h-[200px] text-foreground relative group/card">
+                        <div className="bg-white border border-border rounded-2xl shadow-sm p-6 flex flex-col min-h-[200px] text-foreground relative group/card">
                             {/* Decorative background glow */}
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
 
