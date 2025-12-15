@@ -42,11 +42,11 @@ export function Footer() {
 
                 <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        © {new Date().getFullYear()} Sharencrypt. Made with <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> by Pragnesh Singh Rajput.
+                        © {new Date().getFullYear()} Sharencrypt. Made with <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> by Ananta Labs
                     </p>
                     <div className="flex items-center gap-4">
                         <a
-                            href="https://github.com/pragnesh-singh-rajput"
+                            href="https://github.com/AnantaLabs-OSS"
                             target="_blank"
                             rel="noreferrer"
                             className="text-muted-foreground hover:text-foreground transition-colors"

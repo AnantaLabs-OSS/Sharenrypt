@@ -31,7 +31,7 @@ export function Terms() {
                             <AlertTriangle className="w-5 h-5" />
                             Prohibited Activities
                         </div>
-                        <p className="text-sm text-destructive-foreground/80 dark:text-destructive-foreground">
+                        <p className="text-sm text-destructive-foreground/80">
                             You must not use this service to transfer illegal content, malware, viruses, or any material that infringes on the intellectual property rights of others.
                         </p>
                     </div>

@@ -4,75 +4,42 @@
 
 @layer base {
   :root {
-    /* Vibrant Light Theme */
-    --background: 210 40% 98%;
-    /* Slightly blueish white */
-    --foreground: 222.2 84% 4.9%;
+    /* Cloud Base (White) Theme */
+    --background: 0 0% 100%;
+    /* Authority Slate (Deep Blue) */
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 250 84% 56%;
-    /* Electric Violet */
-    --primary-foreground: 210 40% 98%;
+    /* Logo Deep Navy as Primary */
+    --primary: 210 50% 12%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 190 90% 50%;
-    /* Vibrant Cyan/Teal Accent */
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Logo Vibrant Teal as Secondary/Accent */
+    --secondary: 170 80% 40%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 250 84% 56%;
+    --ring: 142 71% 45%;
 
     --radius: 0.75rem;
   }
 
-  .dark {
-    /* Vibrant Dark Theme */
-    --background: 230 35% 7%;
-    /* Rich Deep Navy */
-    --foreground: 210 40% 98%;
 
-    --card: 232 30% 12%;
-    /* Slightly lighter than bg */
-    --card-foreground: 210 40% 98%;
-
-    --popover: 232 30% 12%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 250 95% 64%;
-    /* Glowing Violet */
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 180 80% 50%;
-    /* Neon Cyan */
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 230 25% 15%;
-    --muted-foreground: 215 20.2% 75%;
-
-    --accent: 230 25% 15%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 230 25% 15%;
-    --input: 230 25% 15%;
-    --ring: 250 95% 64%;
-  }
 }
 
 @layer base {
@@ -81,7 +48,7 @@
   }
 
   body {
-    @apply bg-background text-foreground selection:bg-primary/20 selection:text-primary transition-colors duration-300;
+    @apply bg-background text-foreground selection:bg-secondary/30 selection:text-secondary-foreground transition-colors duration-300;
   }
 }
 
@@ -96,13 +63,11 @@
   overflow: hidden;
   pointer-events: none;
   opacity: 0.6;
-  /* Adjust visibility */
 }
 
 .aurora-blob {
   position: absolute;
   filter: blur(80px);
-  /* Massive blur for smooth gradients */
   opacity: 0.4;
   border-radius: 50%;
   animation: aurora-float 20s infinite alternate ease-in-out;
@@ -113,7 +78,7 @@
   left: -10%;
   width: 50vw;
   height: 50vh;
-  background: radial-gradient(circle, hsla(var(--primary), 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, hsla(var(--primary), 0.2) 0%, transparent 70%);
   animation-duration: 25s;
 }
 
@@ -122,7 +87,7 @@
   right: -10%;
   width: 60vw;
   height: 60vh;
-  background: radial-gradient(circle, hsla(var(--secondary), 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, hsla(var(--secondary), 0.2) 0%, transparent 70%);
   animation-duration: 30s;
   animation-delay: -5s;
 }
@@ -132,7 +97,7 @@
   left: 40%;
   width: 30vw;
   height: 30vh;
-  background: radial-gradient(circle, hsla(var(--primary), 0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, hsla(var(--primary), 0.1) 0%, transparent 70%);
   animation-duration: 20s;
   animation-delay: -10s;
 }

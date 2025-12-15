@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Palette, Monitor, Moon, Sun, Info } from 'lucide-react';
+import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Info } from 'lucide-react';
 import { settingsService } from '../services/settingsService';
 import { SignalingServerConfig, CustomIceServer } from '../types';
 import toast from 'react-hot-toast';
-import { useTheme } from '../context/ThemeContext';
+
 import { Link } from 'react-router-dom';
 import { analytics } from '../utils/analytics';
 
@@ -16,7 +16,7 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialogProps) {
-    const [activeTab, setActiveTab] = useState<'identity' | 'network' | 'appearance' | 'privacy'>('identity');
+    const [activeTab, setActiveTab] = useState<'identity' | 'network' | 'privacy'>('identity');
     const [isLocked, setIsLocked] = useState(false);
     const [customServers, setCustomServers] = useState<CustomIceServer[]>([]);
     const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
@@ -28,7 +28,7 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
         path: '/',
         secure: true
     });
-    const { theme, setTheme } = useTheme();
+
 
     useEffect(() => {
         if (isOpen) {
@@ -126,12 +126,7 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                     >
                         Identity
                     </button>
-                    <button
-                        onClick={() => setActiveTab('appearance')}
-                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'appearance' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                        Appearance
-                    </button>
+
                     <button
                         onClick={() => setActiveTab('privacy')}
                         className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'privacy' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
@@ -157,61 +152,21 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                                 </div>
                                 <button
                                     onClick={handleToggleLock}
-                                    className={`p-3 rounded-lg transition-all ${isLocked ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                                    className={`p-3 rounded-lg transition-all ${isLocked ? 'bg-emerald-500/20 text-emerald-600' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                                 >
                                     {isLocked ? <Lock className="w-6 h-6" /> : <Unlock className="w-6 h-6" />}
                                 </button>
                             </div>
 
                             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                <p className="text-xs text-blue-600 dark:text-blue-300 leading-relaxed">
+                                <p className="text-xs text-blue-600 leading-relaxed">
                                     <strong>Note:</strong> Locking your ID saves it to this browser. If you clear cache or use a different device, your ID will change.
                                 </p>
                             </div>
                         </div>
                     )}
 
-                    {activeTab === 'appearance' && (
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <h3 className="text-foreground font-medium mb-1 flex items-center gap-2">
-                                    <Palette className="w-4 h-4 text-primary" />
-                                    Theme
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4">Choose how Sharencrypt looks.</p>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <button
-                                        onClick={() => setTheme('light')}
-                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'light'
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
-                                    >
-                                        <Sun className="w-4 h-4" />
-                                        <span>Light</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setTheme('dark')}
-                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'dark'
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
-                                    >
-                                        <Moon className="w-4 h-4" />
-                                        <span>Dark</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setTheme('system')}
-                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${theme === 'system'
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'}`}
-                                    >
-                                        <Monitor className="w-4 h-4" />
-                                        <span>System</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {activeTab === 'privacy' && (
                         <div className="space-y-6">
@@ -231,7 +186,7 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                             </div>
 
                             <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                                <p className="text-xs text-yellow-600 dark:text-yellow-400 leading-relaxed flex items-start gap-2">
+                                <p className="text-xs text-yellow-600 leading-relaxed flex items-start gap-2">
                                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                                     <span>
                                         We respect your privacy. No personal data, file contents, or IP addresses are ever tracked or stored.
