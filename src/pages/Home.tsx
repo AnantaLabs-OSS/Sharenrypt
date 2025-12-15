@@ -189,49 +189,52 @@ export function Home() {
 
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left Sidebar: Identity & Controls */}
+                    {/* Left Sidebar: Identity & Controls - Authority Slate (20%) */}
                     <div className="lg:col-span-4 space-y-6">
 
                         {/* Identity Card */}
-                        <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                            <div className="p-6">
+                        <div className="bg-primary border border-primary/20 rounded-xl shadow-lg overflow-hidden text-primary-foreground relative">
+                            {/* Decorative background glow */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/20 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+
+                            <div className="p-6 relative">
                                 <div className="flex items-center justify-between mb-4">
                                     <div>
-                                        <h2 className="text-lg font-semibold text-foreground">Your Identity</h2>
-                                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                            Online as <span className="font-medium text-foreground">{username || 'Guest'}</span>
+                                        <h2 className="text-lg font-semibold text-white">Your Identity</h2>
+                                        <p className="text-sm text-primary-foreground/80 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse shadow-[0_0_10px_rgba(var(--secondary),0.6)]"></span>
+                                            Online as <span className="font-medium text-white">{username || 'Guest'}</span>
                                         </p>
                                     </div>
-                                    <Shield className="w-8 h-8 text-primary/20" />
+                                    <Shield className="w-8 h-8 text-white/20" />
                                 </div>
 
                                 <div className="relative group">
                                     <div
                                         onClick={handleCopyId}
-                                        className="w-full bg-muted/40 border border-border rounded-lg p-3 pr-10 font-mono text-sm text-foreground break-all cursor-pointer hover:bg-muted/60 transition-colors"
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg p-3 pr-10 font-mono text-sm text-white break-all cursor-pointer hover:bg-black/30 transition-colors"
                                     >
                                         {peerId}
                                     </div>
                                     <button
                                         onClick={handleCopyId}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-white/60 hover:text-white transition-colors"
                                     >
-                                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                        {copied ? <Check className="w-4 h-4 text-secondary" /> : <Copy className="w-4 h-4" />}
                                     </button>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 mt-6">
                                     <button
                                         onClick={() => setShowScanner(true)}
-                                        className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border hover:bg-muted/50 hover:text-foreground text-muted-foreground transition-all text-sm font-medium"
+                                        className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all text-sm font-medium"
                                     >
                                         <Scan className="w-4 h-4" />
                                         Scan QR
                                     </button>
                                     <button
                                         onClick={() => setShowQR(!showQR)}
-                                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border hover:bg-muted/50 hover:text-foreground text-muted-foreground transition-all text-sm font-medium ${showQR ? 'bg-muted' : ''}`}
+                                        className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all text-sm font-medium ${showQR ? 'bg-white/10 ring-1 ring-white/20' : ''}`}
                                     >
                                         <QrCode className="w-4 h-4" />
                                         Show QR
@@ -244,7 +247,7 @@ export function Home() {
                                             initial={{ height: 0, opacity: 0 }}
                                             animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }}
-                                            className="mt-6 flex justify-center bg-white p-4 rounded-lg border border-border"
+                                            className="mt-6 flex justify-center bg-white p-4 rounded-lg shadow-inner"
                                         >
                                             <QRCodeSVG value={peerId} size={160} />
                                         </motion.div>
@@ -254,13 +257,16 @@ export function Home() {
                         </div>
 
                         {/* Connection Status Card */}
-                        <div className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col h-full min-h-[200px]">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-semibold text-foreground">Connections</h3>
-                                <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full">{connections.length}</span>
+                        <div className="bg-primary border border-primary/20 rounded-xl shadow-lg p-6 flex flex-col h-full min-h-[200px] text-primary-foreground relative">
+                            {/* Decorative background glow */}
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-secondary/10 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
+
+                            <div className="flex items-center justify-between mb-6 relative z-10">
+                                <h3 className="font-semibold text-white">Connections</h3>
+                                <span className="bg-white/10 text-white text-xs font-bold px-2 py-1 rounded-full border border-white/5">{connections.length}</span>
                             </div>
 
-                            <div className="flex-1 space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar">
+                            <div className="flex-1 space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar relative z-10">
                                 <AnimatePresence>
                                     {connections.length > 0 ? (
                                         connections.map((connection) => (
@@ -269,20 +275,20 @@ export function Home() {
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -10 }}
-                                                className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border hover:border-primary/20 transition-all group"
+                                                className="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-white/5 hover:border-secondary/50 transition-all group"
                                             >
                                                 <div className="flex items-center gap-3 overflow-hidden">
-                                                    <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                                                    <div className="w-8 h-8 rounded-full bg-secondary/20 text-secondary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-secondary/30">
                                                         {(connection.username || connection.id).substring(0, 2).toUpperCase()}
                                                     </div>
                                                     <div className="flex flex-col overflow-hidden leading-tight">
-                                                        <span className="text-sm font-medium text-foreground truncate">{connection.username || 'Anonymous'}</span>
-                                                        <span className="text-xs text-muted-foreground/80 font-mono truncate">{connection.id.substring(0, 8)}...</span>
+                                                        <span className="text-sm font-medium text-white truncate">{connection.username || 'Anonymous'}</span>
+                                                        <span className="text-xs text-white/50 font-mono truncate">{connection.id.substring(0, 8)}...</span>
                                                     </div>
                                                 </div>
                                                 <button
                                                     onClick={() => disconnectPeer(connection.id)}
-                                                    className="text-muted-foreground hover:text-destructive p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="text-white/40 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-all"
                                                     title="Disconnect"
                                                 >
                                                     <X className="w-4 h-4" />
@@ -290,7 +296,7 @@ export function Home() {
                                             </motion.div>
                                         ))
                                     ) : (
-                                        <div className="h-32 flex flex-col items-center justify-center text-muted-foreground/60 text-center border-2 border-dashed border-border rounded-lg">
+                                        <div className="h-32 flex flex-col items-center justify-center text-white/30 text-center border-2 border-dashed border-white/10 rounded-lg">
                                             <Users className="w-8 h-8 mb-2 opacity-50" />
                                             <p className="text-sm">No peers connected</p>
                                         </div>
@@ -298,10 +304,10 @@ export function Home() {
                                 </AnimatePresence>
                             </div>
 
-                            <div className="mt-6 space-y-3">
+                            <div className="mt-6 space-y-3 relative z-10">
                                 <button
                                     onClick={handleConnect}
-                                    className="w-full py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
+                                    className="w-full py-2.5 bg-secondary hover:bg-secondary/90 text-white font-semibold rounded-lg shadow-lg shadow-secondary/20 transition-all flex items-center justify-center gap-2 transform active:scale-95"
                                 >
                                     <Users className="w-4 h-4" />
                                     Connect New Peer
@@ -309,12 +315,12 @@ export function Home() {
                                 {connections.length > 0 && (
                                     <button
                                         onClick={() => setShowChat(true)}
-                                        className="hidden sm:flex w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all items-center justify-center gap-2 relative"
+                                        className="hidden sm:flex w-full py-2.5 bg-white/10 hover:bg-white/20 text-white font-medium rounded-lg border border-white/10 transition-all items-center justify-center gap-2 relative"
                                     >
                                         <MessageSquare className="w-4 h-4" />
                                         Open Chat
                                         {!showChat && unreadCount > 0 && (
-                                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
                                                 {unreadCount}
                                             </span>
                                         )}
@@ -323,17 +329,17 @@ export function Home() {
                             </div>
                         </div>
 
-                        {/* Floating Action Button (Mobile Only) */}
+                        {/* Floating Action Button (Mobile Only) - Updated Position/Color */}
                         {connections.length > 0 && (
                             <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
                                 onClick={() => setShowChat(true)}
-                                className="fixed bottom-24 right-6 p-4 bg-primary text-primary-foreground rounded-full shadow-lg sm:hidden z-30"
+                                className="fixed bottom-24 right-6 p-4 bg-secondary text-white rounded-full shadow-lg shadow-secondary/30 sm:hidden z-30"
                             >
                                 <MessageSquare className="w-6 h-6" />
                                 {!showChat && unreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                    <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm animate-pulse">
                                         {unreadCount}
                                     </span>
                                 )}
