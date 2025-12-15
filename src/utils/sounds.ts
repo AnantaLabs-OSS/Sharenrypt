@@ -13,7 +13,7 @@ export const setSoundEnabled = (enabled: boolean) => {
   localStorage.setItem(STORAGE_KEY, String(enabled));
 };
 
-export const playSound = (type: 'success' | 'error' | 'notification') => {
+export const playSound = (type: 'success' | 'error' | 'notification' | 'message') => {
   if (!isSoundEnabled()) return;
 
   const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -43,6 +43,14 @@ export const playSound = (type: 'success' | 'error' | 'notification') => {
     case 'notification':
       oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
       gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+      break;
+    case 'message':
+      // Gentle double ping for message
+      oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime); // G5
+      gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.1);

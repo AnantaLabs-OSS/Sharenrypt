@@ -7,8 +7,11 @@ import { HowToUse } from './pages/HowToUse';
 import { FAQ } from './pages/FAQ';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
+import { usePageTracking } from './hooks/usePageTracking';
 
 function App() {
+  usePageTracking();
+
   return (
     <Routes>
       <Route element={<Layout />}>

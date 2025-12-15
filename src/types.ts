@@ -27,6 +27,20 @@ export interface WakeLockSentinel {
 }
 
 // Internal Protocol Types
+export interface SignalingServerConfig {
+  host: string;
+  port: number;
+  path: string;
+  secure: boolean;
+  enabled: boolean;
+}
+
+export interface CustomIceServer {
+  urls: string;
+  username?: string;
+  credential?: string;
+}
+
 export interface DeviceInfo {
   peerId: string;
   deviceName: string;

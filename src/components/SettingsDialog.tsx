@@ -2,10 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Save, Lock, Unlock, Network, Plus, Trash2, Server, Palette, Monitor, Moon, Sun, Info } from 'lucide-react';
-import { settingsService, CustomIceServer } from '../services/settingsService';
+import { settingsService } from '../services/settingsService';
+import { SignalingServerConfig, CustomIceServer } from '../types';
 import toast from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
+import { analytics } from '../utils/analytics';
 
 interface SettingsDialogProps {
     isOpen: boolean;
@@ -14,10 +16,18 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialogProps) {
-    const [activeTab, setActiveTab] = useState<'identity' | 'network' | 'appearance'>('identity');
+    const [activeTab, setActiveTab] = useState<'identity' | 'network' | 'appearance' | 'privacy'>('identity');
     const [isLocked, setIsLocked] = useState(false);
     const [customServers, setCustomServers] = useState<CustomIceServer[]>([]);
+    const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
     const [newServer, setNewServer] = useState<CustomIceServer>({ urls: '' });
+    const [signalingConfig, setSignalingConfig] = useState<SignalingServerConfig>({
+        enabled: false,
+        host: '0.peerjs.com',
+        port: 443,
+        path: '/',
+        secure: true
+    });
     const { theme, setTheme } = useTheme();
 
     useEffect(() => {
@@ -26,8 +36,21 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
             const savedId = settingsService.getSavedPeerId();
             setIsLocked(!!savedId);
             setCustomServers(settingsService.getIceServers());
+            setAnalyticsEnabled(analytics.isEnabled());
+            const storedSignaling = settingsService.getSignalingServer();
+            if (storedSignaling) {
+                setSignalingConfig(storedSignaling);
+            }
         }
     }, [isOpen]);
+
+    const handleToggleAnalytics = () => {
+        const newState = !analyticsEnabled;
+        setAnalyticsEnabled(newState);
+        analytics.setEnabled(newState);
+        if (newState) toast.success('Analytics enabled');
+        else toast.success('Analytics disabled');
+    };
 
     const handleToggleLock = () => {
         if (isLocked) {
@@ -65,6 +88,13 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
         setCustomServers(updated);
         settingsService.saveIceServers(updated);
         toast.success('Server removed');
+
+
+    };
+
+    const handleSaveSignaling = () => {
+        settingsService.saveSignalingServer(signalingConfig);
+        toast.success('Signaling settings saved. Refresh to apply.', { duration: 4000 });
     };
 
     if (!isOpen) return null;
@@ -101,6 +131,12 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                         className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'appearance' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Appearance
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('privacy')}
+                        className={`flex-1 p-4 text-sm font-medium transition-colors ${activeTab === 'privacy' ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                        Privacy
                     </button>
                     <button
                         onClick={() => setActiveTab('network')}
@@ -177,8 +213,109 @@ export function SettingsDialog({ isOpen, onClose, currentPeerId }: SettingsDialo
                         </div>
                     )}
 
+                    {activeTab === 'privacy' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
+                                <div>
+                                    <h3 className="text-foreground font-medium mb-1">Usage Statistics</h3>
+                                    <p className="text-sm text-muted-foreground">Help us improve by sending anonymous usage data.</p>
+                                </div>
+                                <button
+                                    onClick={handleToggleAnalytics}
+                                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-2 border-transparent ${analyticsEnabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                >
+                                    <span
+                                        className={`inline-block w-4 h-4 transform bg-background rounded-full transition-transform ${analyticsEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                    />
+                                </button>
+                            </div>
+
+                            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                                <p className="text-xs text-yellow-600 dark:text-yellow-400 leading-relaxed flex items-start gap-2">
+                                    <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                                    <span>
+                                        We respect your privacy. No personal data, file contents, or IP addresses are ever tracked or stored.
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'network' && (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
+                            {/* Signaling Server Section */}
+                            <div className="space-y-4 pb-6 border-b border-border">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-foreground font-medium">Signaling Server</h3>
+                                        <p className="text-xs text-muted-foreground">Configure custom PeerJS server (e.g. for local network).</p>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const newVal = { ...signalingConfig, enabled: !signalingConfig.enabled };
+                                            setSignalingConfig(newVal);
+                                        }}
+                                        className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-2 border-transparent ${signalingConfig.enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                    >
+                                        <span
+                                            className={`inline-block w-4 h-4 transform bg-background rounded-full transition-transform ${signalingConfig.enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                        />
+                                    </button>
+                                </div>
+
+                                {signalingConfig.enabled && (
+                                    <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
+                                        <div className="col-span-2">
+                                            <label className="text-xs font-medium text-muted-foreground">Host</label>
+                                            <input
+                                                type="text"
+                                                placeholder="0.peerjs.com"
+                                                value={signalingConfig.host}
+                                                onChange={e => setSignalingConfig({ ...signalingConfig, host: e.target.value })}
+                                                className="w-full mt-1 bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground">Port</label>
+                                            <input
+                                                type="number"
+                                                placeholder="443"
+                                                value={signalingConfig.port}
+                                                onChange={e => setSignalingConfig({ ...signalingConfig, port: parseInt(e.target.value) || 443 })}
+                                                className="w-full mt-1 bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-medium text-muted-foreground">Path</label>
+                                            <input
+                                                type="text"
+                                                placeholder="/"
+                                                value={signalingConfig.path}
+                                                onChange={e => setSignalingConfig({ ...signalingConfig, path: e.target.value })}
+                                                className="w-full mt-1 bg-background border border-input rounded-md p-2 text-sm text-foreground focus:ring-1 focus:ring-ring outline-none"
+                                            />
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-between pt-2">
+                                            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={signalingConfig.secure}
+                                                    onChange={e => setSignalingConfig({ ...signalingConfig, secure: e.target.checked })}
+                                                    className="rounded border-input text-primary focus:ring-ring"
+                                                />
+                                                Use Secure Connection (SSL/TLS)
+                                            </label>
+                                            <button
+                                                onClick={handleSaveSignaling}
+                                                className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+                                            >
+                                                <Save className="w-4 h-4" /> Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="text-foreground font-medium mb-1">Custom ICE Servers</h3>

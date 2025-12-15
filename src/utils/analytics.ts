@@ -12,7 +12,29 @@ class Analytics {
     private initialized: boolean = false;
 
     constructor() {
-        this.enabled = import.meta.env.VITE_ENABLE_ANALYTICS === 'true';
+        const stored = localStorage.getItem('sharencrypt-analytics');
+        // Default to TRUE if env var is true, unless user explicitly opted out ('false')
+        // OR default to FALSE if env var is false.
+        const envEnabled = import.meta.env.VITE_ENABLE_ANALYTICS === 'true';
+
+        if (stored !== null) {
+            this.enabled = envEnabled && stored === 'true';
+        } else {
+            this.enabled = envEnabled;
+        }
+    }
+
+    public setEnabled(enabled: boolean) {
+        this.enabled = enabled;
+        localStorage.setItem('sharencrypt-analytics', String(enabled));
+        if (enabled && !this.initialized) {
+            this.initialize();
+        }
+        console.log(`📊 Analytics ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    public isEnabled(): boolean {
+        return this.enabled;
     }
 
     public initialize() {

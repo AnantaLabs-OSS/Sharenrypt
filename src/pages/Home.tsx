@@ -1,13 +1,11 @@
-
 import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock, Settings, Shield, ChevronRight, Copy, Check } from 'lucide-react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock, Settings, Shield, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePeerConnection } from '../hooks/usePeerConnection';
 import { FileList } from '../components/FileList';
 import { QRScanner } from '../components/QRScanner';
-import { ConnectionRequest } from '../components/ConnectionRequest';
 import { ConnectionDialog } from '../components/ConnectionDialog';
 import { WelcomeDialog } from '../components/WelcomeDialog';
 import { SoundToggle } from '../components/SoundToggle';
@@ -16,7 +14,6 @@ import { HistoryDialog } from '../components/HistoryDialog';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { DragDropOverlay } from '../components/DragDropOverlay';
 import { analytics } from '../utils/analytics';
-import { useTheme } from '../context/ThemeContext';
 
 export function Home() {
     const {
@@ -24,18 +21,18 @@ export function Home() {
         connections,
         files,
         messages,
-        pendingConnections,
         connectionStatus,
         connectToPeer,
         sendFile,
         sendTextMessage,
         disconnectPeer,
-        acceptConnection,
-        rejectConnection,
         retryConnection,
         username,
         setUsername,
-        sendZip
+        sendZip,
+        typingStatus,
+        sendTyping,
+        markMessageAsRead
     } = usePeerConnection();
 
     const [showQR, setShowQR] = useState(false);
@@ -53,8 +50,10 @@ export function Home() {
     // Initialize Analytics
     React.useEffect(() => {
         analytics.initialize();
-        analytics.trackPageView('/');
     }, []);
+
+    // Calculate global unread count
+    const unreadCount = messages.filter(m => !m.self && m.status !== 'read').length;
 
     const handleConnect = useCallback(() => {
         setShowConnectDialog(true);
@@ -134,18 +133,6 @@ export function Home() {
                     },
                 }}
             />
-
-            <AnimatePresence>
-                {pendingConnections.map((request) => (
-                    <ConnectionRequest
-                        key={request.id}
-                        peerId={request.id}
-                        username={request.username}
-                        onAccept={() => acceptConnection(request.id)}
-                        onReject={() => rejectConnection(request.id)}
-                    />
-                ))}
-            </AnimatePresence>
 
             <DragDropOverlay onFileDrop={handleFileDrop} isConnect={connections.length > 0} />
 
@@ -322,14 +309,36 @@ export function Home() {
                                 {connections.length > 0 && (
                                     <button
                                         onClick={() => setShowChat(true)}
-                                        className="w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all flex items-center justify-center gap-2"
+                                        className="hidden sm:flex w-full py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border transition-all items-center justify-center gap-2 relative"
                                     >
                                         <MessageSquare className="w-4 h-4" />
                                         Open Chat
+                                        {!showChat && unreadCount > 0 && (
+                                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                                {unreadCount}
+                                            </span>
+                                        )}
                                     </button>
                                 )}
                             </div>
                         </div>
+
+                        {/* Floating Action Button (Mobile Only) */}
+                        {connections.length > 0 && (
+                            <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => setShowChat(true)}
+                                className="fixed bottom-24 right-6 p-4 bg-primary text-primary-foreground rounded-full shadow-lg sm:hidden z-30"
+                            >
+                                <MessageSquare className="w-6 h-6" />
+                                {!showChat && unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground shadow-sm animate-pulse">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </motion.button>
+                        )}
                     </div>
 
                     {/* Right Content: File Transfer */}
@@ -342,8 +351,8 @@ export function Home() {
                                 </h2>
                                 <label
                                     className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 cursor-pointer transition-all ${connections.length > 0
-                                            ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
-                                            : 'bg-muted text-muted-foreground cursor-not-allowed'
+                                        ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                                        : 'bg-muted text-muted-foreground cursor-not-allowed'
                                         }`}
                                 >
                                     <Upload className="w-4 h-4" />
@@ -396,9 +405,16 @@ export function Home() {
                         messages={messages}
                         connections={connections}
                         onSendMessage={handleSendMessage}
+                        onMarkAsRead={markMessageAsRead}
                         isOpen={showChat}
                         onClose={() => setShowChat(false)}
                         onClear={() => { }}
+                        typingStatus={typingStatus}
+                        onSendTyping={(isTyping) => {
+                            if (connections.length > 0) {
+                                connections.forEach(conn => sendTyping(conn.id, isTyping));
+                            }
+                        }}
                     />
                 )}
             </AnimatePresence>

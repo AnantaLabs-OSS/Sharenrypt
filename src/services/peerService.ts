@@ -29,7 +29,10 @@ export class PeerService extends EventEmitter {
     this.transferManager.on('file-received', (data) => this.emit('file-received', data));
     this.transferManager.on('file-sent', (data) => this.emit('file-sent', data));
     this.transferManager.on('message', (data) => this.emit('message', data));
+    this.transferManager.on('message', (data) => this.emit('message', data));
     this.transferManager.on('message-read', (data) => this.emit('message-read', data));
+    this.transferManager.on('typing-start', (data) => this.emit('typing-start', data));
+    this.transferManager.on('typing-end', (data) => this.emit('typing-end', data));
 
     // Internal routing: Pass data from Connection to Transfer Manager
     this.connectionManager.on('data', ({ peerId, data }) => {
@@ -81,6 +84,10 @@ export class PeerService extends EventEmitter {
 
   public sendTextMessage(targetPeerId: string, text: string): string | null {
     return this.transferManager.sendTextMessage(targetPeerId, text);
+  }
+
+  public sendTypingStatus(targetPeerId: string, isTyping: boolean): void {
+    this.transferManager.sendTypingStatus(targetPeerId, isTyping);
   }
 
   public sendReadReceipt(targetPeerId: string, messageId: string): void {

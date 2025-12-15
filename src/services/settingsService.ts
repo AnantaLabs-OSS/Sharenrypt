@@ -2,14 +2,11 @@
 const STORAGE_KEYS = {
     PEER_ID: 'sharencrypt_peer_id',
     ICE_SERVERS: 'sharencrypt_ice_servers',
+    SIGNALING_SERVER: 'sharencrypt_signaling_server',
     THEME: 'sharencrypt_theme', // Future proofing
 };
 
-export interface CustomIceServer {
-    urls: string;
-    username?: string;
-    credential?: string;
-}
+import { CustomIceServer, SignalingServerConfig } from '../types';
 
 export const settingsService = {
     // --- Peer Identity ---
@@ -53,5 +50,25 @@ export const settingsService = {
             servers.splice(index, 1);
             this.saveIceServers(servers);
         }
+    },
+
+    // --- Signaling Server ---
+    getSignalingServer(): SignalingServerConfig | null {
+        const stored = localStorage.getItem(STORAGE_KEYS.SIGNALING_SERVER);
+        if (!stored) return null;
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            console.error('Failed to parse signaling server config', e);
+            return null;
+        }
+    },
+
+    saveSignalingServer(config: SignalingServerConfig): void {
+        localStorage.setItem(STORAGE_KEYS.SIGNALING_SERVER, JSON.stringify(config));
+    },
+
+    clearSignalingServer(): void {
+        localStorage.removeItem(STORAGE_KEYS.SIGNALING_SERVER);
     }
 };

@@ -14,8 +14,11 @@ export const usePeerConnection = () => {
   const [pendingConnections, setPendingConnections] = useState<{ id: string; username?: string }[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
   const [messages, setMessages] = useState<{ id: string; peerId: string; text: string; self?: boolean; time: number; status: 'sent' | 'delivered' | 'read' }[]>([]);
+  const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
   const peerServiceRef = useRef<PeerService | null>(null);
+
+  // No persistence for chat (Ephemeral)
 
   useEffect(() => {
     // Initialize PeerService once
@@ -61,6 +64,8 @@ export const usePeerConnection = () => {
 
     const handleDisconnection = (data: { peerId: string }) => {
       setConnections(prev => prev.filter(conn => conn.id !== data.peerId));
+      // Clear messages on disconnection for privacy
+      setMessages([]);
     };
 
     const handleConnectionRequest = (data: { peerId: string; username?: string }) => {
@@ -126,11 +131,6 @@ export const usePeerConnection = () => {
       setFiles(prev => prev.map(file => {
         if (file.id === data.id) {
           const updated = { ...file, ...data };
-          // If status changed to completed (or waiting which is 100%)
-          // We'll use 'completed' if the UI sets it, or we trigger it manually? 
-          // In PeerService, it emits 'waiting' when done sending. Real completion might be explicit ack.
-          // Let's assume 'waiting' with 100% progress is efficient 'Sent' status for now or add 'completed' handling if app sends it.
-          // Actually, let's just log it if we see it.
 
           if (updated.status === 'completed') {
             const peer = connections.find(c => c.id === updated.peerId);
@@ -170,6 +170,14 @@ export const usePeerConnection = () => {
       ));
     };
 
+    const handleTypingStart = ({ peerId }: { peerId: string }) => {
+      setTypingStatus(prev => ({ ...prev, [peerId]: true }));
+    };
+
+    const handleTypingEnd = ({ peerId }: { peerId: string }) => {
+      setTypingStatus(prev => ({ ...prev, [peerId]: false }));
+    };
+
     // Register event listeners
     peerServiceInstance.on('ready', handleReady);
     peerServiceInstance.on('connection', handleConnection);
@@ -182,6 +190,8 @@ export const usePeerConnection = () => {
     peerServiceInstance.on('file-sent', handleFileSent);
     peerServiceInstance.on('message', handleMessage);
     peerServiceInstance.on('message-read', handleMessageRead);
+    peerServiceInstance.on('typing-start', handleTypingStart);
+    peerServiceInstance.on('typing-end', handleTypingEnd);
 
     // Clean up event listeners on unmount
     return () => {
@@ -197,6 +207,8 @@ export const usePeerConnection = () => {
         peerServiceInstance.off('file-sent', handleFileSent);
         peerServiceInstance.off('message', handleMessage);
         peerServiceInstance.off('message-read', handleMessageRead);
+        peerServiceInstance.off('typing-start', handleTypingStart);
+        peerServiceInstance.off('typing-end', handleTypingEnd);
       }
     };
   }, []);
@@ -282,6 +294,12 @@ export const usePeerConnection = () => {
     }
   }, []);
 
+  const sendTyping = useCallback((targetPeerId: string, isTyping: boolean) => {
+    if (peerServiceRef.current) {
+      peerServiceRef.current.sendTypingStatus(targetPeerId, isTyping);
+    }
+  }, []);
+
   return {
     peerId,
     username,
@@ -300,6 +318,9 @@ export const usePeerConnection = () => {
     rejectConnection,
     retryConnection,
     setUsername,
-    markMessageAsRead
+
+    markMessageAsRead,
+    typingStatus,
+    sendTyping
   };
 };
