@@ -193,7 +193,7 @@ export function Home() {
                     <div className="lg:col-span-4 space-y-6">
 
                         {/* Identity Card */}
-                        <div className="bg-primary border border-primary/20 rounded-xl shadow-lg overflow-hidden text-primary-foreground relative">
+                        <div className="bg-gradient-to-br from-primary via-primary to-[#0B1221] border border-white/10 rounded-2xl shadow-xl shadow-primary/20 overflow-hidden text-primary-foreground relative group/card">
                             {/* Decorative background glow */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/20 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
 
@@ -257,7 +257,7 @@ export function Home() {
                         </div>
 
                         {/* Connection Status Card */}
-                        <div className="bg-primary border border-primary/20 rounded-xl shadow-lg p-6 flex flex-col h-full min-h-[200px] text-primary-foreground relative">
+                        <div className="bg-gradient-to-br from-primary via-primary to-[#0B1221] border border-white/10 rounded-2xl shadow-xl shadow-primary/20 p-6 flex flex-col h-full min-h-[200px] text-primary-foreground relative group/card">
                             {/* Decorative background glow */}
                             <div className="absolute bottom-0 left-0 w-24 h-24 bg-secondary/10 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none" />
 
