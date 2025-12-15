@@ -85,7 +85,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={onCancel}
-                  className="flex-1 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-md transition-colors border border-border"
+                  className="flex-1 py-2.5 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-medium rounded-md transition-colors border border-border"
                 >
                   Cancel
                 </motion.button>
@@ -107,7 +107,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={onCancel}
-                className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-md transition-colors border border-border"
+                className="px-6 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-medium rounded-md transition-colors border border-border"
               >
                 Cancel
               </motion.button>
@@ -137,7 +137,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onCancel}
-                  className="flex-1 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-md border border-border"
+                  className="flex-1 py-2.5 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-medium rounded-md border border-border"
                 >
                   Cancel
                 </motion.button>

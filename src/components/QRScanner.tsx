@@ -159,7 +159,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onClose}
-                  className="flex-1 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border"
+                  className="flex-1 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-medium rounded-lg border border-border"
                 >
                   Cancel
                 </motion.button>
@@ -200,7 +200,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, onClose }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onClose}
-                  className="flex-1 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg border border-border"
+                  className="flex-1 py-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground font-medium rounded-lg border border-border"
                 >
                   Cancel
                 </motion.button>
