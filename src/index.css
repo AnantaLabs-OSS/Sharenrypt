@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cloud Base (White) Theme */
+    --background: 0 0% 100%;
+    /* Authority Slate (Deep Blue) */
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Logo Deep Navy as Primary */
+    --primary: 210 50% 12%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Logo Vibrant Teal as Secondary/Accent */
+    --secondary: 170 80% 40%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 71% 45%;
+
+    --radius: 0.75rem;
+  }
+
+
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground selection:bg-secondary/30 selection:text-secondary-foreground transition-colors duration-300;
+  }
+}
+
+/* Aurora Gradient Backgrounds */
+.aurora-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.aurora-blob {
+  position: absolute;
+  filter: blur(80px);
+  opacity: 0.4;
+  border-radius: 50%;
+  animation: aurora-float 20s infinite alternate ease-in-out;
+}
+
+.aurora-blob-1 {
+  top: -10%;
+  left: -10%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, hsla(var(--primary), 0.2) 0%, transparent 70%);
+  animation-duration: 25s;
+}
+
+.aurora-blob-2 {
+  bottom: -10%;
+  right: -10%;
+  width: 60vw;
+  height: 60vh;
+  background: radial-gradient(circle, hsla(var(--secondary), 0.2) 0%, transparent 70%);
+  animation-duration: 30s;
+  animation-delay: -5s;
+}
+
+.aurora-blob-3 {
+  top: 40%;
+  left: 40%;
+  width: 30vw;
+  height: 30vh;
+  background: radial-gradient(circle, hsla(var(--primary), 0.1) 0%, transparent 70%);
+  animation-duration: 20s;
+  animation-delay: -10s;
+}
+
+@keyframes aurora-float {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(10%, 10%) scale(1.1);
+  }
+
+  100% {
+    transform: translate(-5%, -5%) scale(0.95);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-primary/50 transition-colors;
+}
+
+/* Utilities */
+.glass-panel {
+  @apply bg-card/70 backdrop-blur-md border border-border shadow-lg shadow-primary/5;
+}
