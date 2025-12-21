@@ -1,0 +1,7 @@
+# Proxy Relay
+/ws/*  https://sharencrypt-relay.netlify.app/ws/:splat  200!
+
+# SPA Catch-all (This allows react-router to handle /faq, /how-to-use etc.)
+# Netlify will serve existing static files (robots.txt, sitemap.xml) directly
+# BEFORE applying this rule, provided the file exists.
+/*  /index.html  200

@@ -1,0 +1,3 @@
+# Ensure correct MIME type for WASM files
+/wasm/*.wasm
+  Content-Type: application/wasm
