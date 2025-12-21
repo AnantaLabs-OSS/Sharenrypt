@@ -17,6 +17,8 @@ import { analytics } from '../utils/analytics';
 import { useLicense } from '../context/LicenseContext';
 import { EnterpriseSetup } from '../components/EnterpriseSetup';
 import { ConnectionRequest } from '../components/ConnectionRequest';
+import { HomeSEOContent } from '../components/HomeSEOContent';
+import { SEO } from '../components/SEO';
 
 export function Home() {
     const {
@@ -151,6 +153,11 @@ export function Home() {
 
     return (
         <div className="relative min-h-[calc(100vh-4rem)]">
+            <SEO
+                title="Sharencrypt - Free Unlimited Secure File Sharing"
+                description="Secure, peer-to-peer file sharing with no file size limits. Encrypted, blazing fast, and free. Share large files directly between devices without the cloud."
+                canonical="/"
+            />
             <Toaster
                 position="top-right"
                 containerStyle={{
@@ -166,8 +173,6 @@ export function Home() {
             />
 
             <DragDropOverlay onFileDrop={handleFileDrop} isConnect={connections.length > 0} />
-
-            {/* Debug Log moved to useEffect or removed to fix lint */}
 
             <AnimatePresence>
                 {pendingConnections.map(req => (
@@ -482,6 +487,8 @@ export function Home() {
                     />
                 )}
             </AnimatePresence>
+
+            <HomeSEOContent />
         </div>
     );
 }

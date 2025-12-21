@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Wifi, Upload, Zap, ShieldCheck, Server, Globe, Smartphone, Monitor, ArrowRight } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { SEO } from '../components/SEO';
 
 export function HowToUse() {
     const { hash } = useLocation();
@@ -62,6 +63,12 @@ export function HowToUse() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <SEO
+                title="How to Use - Sharencrypt"
+                description="Learn how to share unlimited large files securely using Sharencrypt. No signup, no cloud, just direct P2P transfer."
+                canonical="/guide"
+            />
+
             {/* Hero Section */}
             <div className="text-center mb-20">
                 <motion.h1
@@ -150,6 +157,40 @@ export function HowToUse() {
                             <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
                         </motion.div>
                     ))}
+                </div>
+            </div>
+
+            {/* Tips for Maximum Speed */}
+            <div className="mb-24">
+                <div className="bg-gradient-to-br from-muted/50 to-muted/10 border border-border rounded-3xl p-8 md:p-12">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold text-foreground mb-4">Tips for Maximum Speed</h2>
+                        <p className="text-muted-foreground">Get the most out of your peer-to-peer connection</p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="bg-card p-6 rounded-xl border border-border">
+                            <Wifi className="w-8 h-8 text-primary mb-4" />
+                            <h3 className="font-semibold text-lg mb-2">Use the same WiFi</h3>
+                            <p className="text-sm text-muted-foreground">
+                                If both devices are on the same local network (LAN), data transfers locally. This is incredibly fast (often &gt;100MB/s) and doesn't use your internet data plan.
+                            </p>
+                        </div>
+                        <div className="bg-card p-6 rounded-xl border border-border">
+                            <Monitor className="w-8 h-8 text-blue-500 mb-4" />
+                            <h3 className="font-semibold text-lg mb-2">Keep Browser Active</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Modern browsers throttle background tabs to save battery. For massive files, keep the Sharencrypt tab focused on both devices.
+                            </p>
+                        </div>
+                        <div className="bg-card p-6 rounded-xl border border-border">
+                            <Zap className="w-8 h-8 text-amber-500 mb-4" />
+                            <h3 className="font-semibold text-lg mb-2">Avoid VPNs</h3>
+                            <p className="text-sm text-muted-foreground">
+                                VPNs route your traffic through an intermediate server, which forces Sharencrypt to use TURN relays instead of direct P2P, significantly slowing down transfer speeds.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 

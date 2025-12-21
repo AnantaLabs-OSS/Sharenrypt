@@ -8,6 +8,7 @@ import Peer from 'peerjs';
 (window as any).Peer = Peer;
 
 import { BrowserRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { LicenseProvider } from './context/LicenseContext';
@@ -16,14 +17,16 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="dark" storageKey="sharencrypt-theme">
-          <LicenseProvider>
-            <App />
-          </LicenseProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <HelmetProvider>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <ThemeProvider defaultTheme="dark" storageKey="sharencrypt-theme">
+            <LicenseProvider>
+              <App />
+            </LicenseProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </HelmetProvider>
   </StrictMode>
 );

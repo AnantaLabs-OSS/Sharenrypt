@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HelpCircle, ChevronDown, Shield, Zap, Globe, Lock, FileText, Server } from 'lucide-react';
+import { SEO } from '../components/SEO';
 
 export function FAQ() {
     const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -13,24 +13,39 @@ export function FAQ() {
             icon: <Zap className="w-5 h-5 text-emerald-500" />
         },
         {
-            q: "Is there a file size limit?",
-            a: "Technically, no! Since files stream directly between devices, there's no server-imposed limit. With our enhanced disk streaming feature, you can transfer files of unlimited size without worrying about browser RAM limits. Very large files (GBs) transfer smoothly thanks to our buffered write system.",
+            q: "How secure is Sharencrypt file transfer?",
+            a: "We employ military-grade security standards. Every session creates a new, ephemeral 256-bit AES-GCM key pair. This is a higher standard than many banking apps. Furthermore, since there is no intermediate server storage, there is no central database for hackers to target. Your files exist only on the sender's and receiver's devices.",
+            icon: <Shield className="w-5 h-5 text-purple-500" />
+        },
+        {
+            q: "Is Sharencrypt faster than WeTransfer or Google Drive?",
+            a: "In most cases, yes! Cloud services require you to upload the file first (speed limited by your upload bandwidth) and then the recipient downloads it. Sharencrypt streams simultaneously. If you are on the same WiFi network (LAN), speeds can reach hundreds of megabytes per second, far exceeding internet limits.",
+            icon: <Zap className="w-5 h-5 text-emerald-500" />
+        },
+        {
+            q: "Why is there no file size limit?",
+            a: "Because we don't pay for storage! Traditional services have limits (e.g. 2GB) because storing your data costs them money. Sharencrypt is a pipe, not a bucket. It connects two computers directly, so the only limit is the free space on the recipient's hard drive. You can share 50GB, 200GB, or 1TB files for free.",
             icon: <FileText className="w-5 h-5 text-blue-500" />
         },
         {
-            q: "Are my files stored on a server?",
-            a: "Never! Files travel directly from sender to recipient via WebRTC. Your data never touches our servers. If either party closes their browser, the transfer stops immediately. Complete privacy guaranteed.",
-            icon: <Shield className="w-5 h-5 text-purple-500" />
+            q: "Can I send files to an iPhone or Android?",
+            a: "Yes. Sharencrypt is a Progressive Web App (PWA) that runs in Safari, Chrome, and Firefox on mobile devices. You don't need to install an app from the store. Just open the website, scan the QR code from the sender, and the transfer begins immediately.",
+            icon: <Globe className="w-5 h-5 text-orange-500" />
+        },
+        {
+            q: "Is this better than email attachments?",
+            a: "Email attachments are usually limited to 25MB and are not encrypted at rest. Sharencrypt allows unlimited sizes and guarantees end-to-end encryption. It is cleaner, faster, and more secure than sending sensitive documents via email.",
+            icon: <Server className="w-5 h-5 text-cyan-500" />
+        },
+        {
+            q: "Do I need to register an account?",
+            a: "No. We believe in privacy by design. Registration requires collecting personal data, which creates risk. Sharencrypt works anonymously using temporary identifiers. You can just open the site and start sharing deeply private files without leaving a digital footprint.",
+            icon: <Lock className="w-5 h-5 text-red-500" />
         },
         {
             q: "How does the encryption work?",
             a: "We use AES-GCM 256-bit encryption - the same standard used by banks and governments. A unique encryption key is generated for every transfer in your browser. The key is shared securely via the signaling channel and never leaves your device in plain form.",
             icon: <Lock className="w-5 h-5 text-red-500" />
-        },
-        {
-            q: "Can I use it on mobile?",
-            a: "Absolutely! Sharencrypt works in any modern browser (Chrome, Firefox, Safari) on iOS and Android. The interface is fully responsive and optimized for touch devices. QR code scanning makes mobile connections super easy!",
-            icon: <Globe className="w-5 h-5 text-orange-500" />
         },
         {
             q: "What happens if the connection drops?",
@@ -46,6 +61,12 @@ export function FAQ() {
 
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <SEO
+                title="FAQ - Sharencrypt"
+                description="Frequently asked questions about Sharencrypt security, free P2P transfers, and file size limits."
+                canonical="/faq"
+            />
+
             <div className="text-center mb-16">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
