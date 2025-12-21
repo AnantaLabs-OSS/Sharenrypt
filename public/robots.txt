@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sharencrypt.anantalabs.tech/sitemap.xml
