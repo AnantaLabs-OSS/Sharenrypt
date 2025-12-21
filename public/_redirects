@@ -1,3 +1,7 @@
+# Static pass-throughs
+/robots.txt  /robots.txt  200
+/sitemap.xml  /sitemap.xml  200
+
 # Proxy Relay
 /ws/*  https://sharencrypt-relay.netlify.app/ws/:splat  200!
 

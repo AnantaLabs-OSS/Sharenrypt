@@ -11,6 +11,8 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        globIgnores: ['**/robots.txt', '**/sitemap.xml'],
+        navigateFallbackDenylist: [/^\/robots.txt$/, /^\/sitemap.xml$/]
       },
       manifest: {
         name: 'Sharenrypt P2P',
