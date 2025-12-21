@@ -7,6 +7,8 @@ import { HowToUse } from './pages/HowToUse';
 import { FAQ } from './pages/FAQ';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
+import { Robots } from './pages/Robots';
+import { Sitemap } from './pages/Sitemap';
 import { usePageTracking } from './hooks/usePageTracking';
 import { WasmLoader } from './components/WasmLoader';
 
@@ -22,6 +24,8 @@ function App() {
           <Route path="/faq" element={<FAQ />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/sitemap.xml" element={<Sitemap />} />
+          <Route path="/robots.txt" element={<Robots />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
