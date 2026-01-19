@@ -362,11 +362,11 @@ export class TransferManager extends EventEmitter {
             transfer.receivedSize += decrypted.byteLength;
 
             // Progress Calculation
-            const progress = Math.round((transfer.receivedSize / transfer.size) * 100);
-            const elapsed = (Date.now() - transfer.startTime) / 1000;
+            const progress = transfer.size > 0 ? Math.round((transfer.receivedSize / transfer.size) * 100) : 0;
+            const elapsed = Math.max((Date.now() - transfer.startTime) / 1000, 0.001); // Avoid division by zero
             const speed = transfer.receivedSize / elapsed; // bytes/sec
             const remaining = transfer.size - transfer.receivedSize;
-            const eta = speed > 0 ? remaining / speed : 0;
+            const eta = (speed > 0 && remaining > 0) ? remaining / speed : 0;
 
             this.emit('file-progress', {
                 id: transfer.id,
