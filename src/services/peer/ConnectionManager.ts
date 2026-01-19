@@ -91,6 +91,7 @@ export class ConnectionManager extends EventEmitter {
         this.peer.on('open', (id) => {
             console.log('Connected to PeerJS network with ID:', id);
             this.peerId = id;
+            settingsService.savePeerId(id); // Persist ID
             toast.success('Ready for P2P connections!');
             this.emit('ready', { peerId: id });
         });
@@ -336,9 +337,11 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
-        // Otherwise wait for it
+        // Otherwise wait for it, but with a timeout fallback
+        // This fixes the "Accept button not working" hang on iOS if handshake packet is lost/delayed
         const handshakeHandler = (data: DeviceInfo) => {
             if (data.peerId === peerId) {
+                clearTimeout(fallbackTimeout);
                 toast.dismiss('accepting');
                 toast.success(`Connected!`);
                 this.emit('connection', { peerId, deviceInfo: this.peerDeviceInfo.get(peerId) });
@@ -346,6 +349,25 @@ export class ConnectionManager extends EventEmitter {
             }
         };
         this.on('handshake-complete', handshakeHandler);
+
+        const fallbackTimeout = setTimeout(() => {
+            console.warn('Handshake timed out during accept, forcing connection success');
+            this.off('handshake-complete', handshakeHandler);
+            toast.dismiss('accepting');
+            toast.success('Connected (Handshake incomplete)');
+
+            // Register basic info since we missed the handshake
+            if (!this.peerDeviceInfo.has(peerId)) {
+                this.peerDeviceInfo.set(peerId, {
+                    peerId,
+                    deviceName: 'Unknown Device',
+                    browser: 'Unknown',
+                    timestamp: Date.now()
+                });
+            }
+
+            this.emit('connection', { peerId, deviceInfo: this.peerDeviceInfo.get(peerId) });
+        }, 3000); // 3 second max wait
     }
 
     public rejectConnection(peerId: string): void {
@@ -408,6 +430,7 @@ export class ConnectionManager extends EventEmitter {
         conn.on('close', () => {
             console.log('Connection closed:', peerId);
             this.connections.delete(peerId);
+            this.pendingConnections.delete(peerId); // Clean up pending too
             this.peerDeviceInfo.delete(peerId);
             this.emit('disconnection', { peerId });
         });
