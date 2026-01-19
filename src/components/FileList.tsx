@@ -12,6 +12,8 @@ interface FileListProps {
 
 export const FileList: React.FC<FileListProps> = ({ files }) => {
   const getStatusIcon = (status: FileTransfer['status']) => {
+    if (!status) return <Clock className="w-5 h-5 text-muted-foreground" />;
+
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-5 h-5 text-emerald-500" />;
@@ -50,7 +52,7 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
 
                 <p className="text-xs text-muted-foreground mb-2">{formatBytes(file.size)}</p>
 
-                {['transferring', 'downloading', 'encrypting', 'sending', 'receiving'].includes(file.status) ? (
+                {(file.status && ['transferring', 'downloading', 'encrypting', 'sending', 'receiving'].includes(file.status)) ? (
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs text-primary font-mono">
                       <span>{file.progress?.toFixed(1) || 0}%</span>
@@ -74,7 +76,7 @@ export const FileList: React.FC<FileListProps> = ({ files }) => {
                         file.status === 'waiting' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' :
                           'bg-muted border-border text-muted-foreground'
                       }`}>
-                      {file.status === 'waiting' ? 'Finalizing...' : file.status.charAt(0).toUpperCase() + file.status.slice(1)}
+                      {file.status === 'waiting' ? 'Finalizing...' : (file.status ? file.status.charAt(0).toUpperCase() + file.status.slice(1) : 'Pending')}
                     </span>
                   </div>
                 )}

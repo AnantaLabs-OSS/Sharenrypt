@@ -314,7 +314,9 @@ export class TransferManager extends EventEmitter {
                 name: metadata.name,
                 size: metadata.size,
                 type: metadata.type,
-                peerId: peerId
+                peerId: peerId,
+                status: 'receiving',
+                progress: 0
             });
 
             if ('showSaveFilePicker' in window) {
