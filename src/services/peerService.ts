@@ -46,6 +46,10 @@ export class PeerService extends EventEmitter {
     return this.connectionManager.getPeerId();
   }
 
+  public isSignalingConnected(): boolean {
+    return this.connectionManager.isSignalingConnected();
+  }
+
   public setUsername(name: string): void {
     this.connectionManager.setUsername(name);
   }

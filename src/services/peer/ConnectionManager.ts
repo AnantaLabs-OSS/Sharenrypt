@@ -144,6 +144,10 @@ export class ConnectionManager extends EventEmitter {
         return this.peerId;
     }
 
+    public isSignalingConnected(): boolean {
+        return !!this.peer && this.peer.open;
+    }
+
     public setUsername(name: string): void {
         this.username = name;
     }

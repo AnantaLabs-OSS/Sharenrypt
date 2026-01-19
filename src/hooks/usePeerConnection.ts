@@ -17,6 +17,7 @@ export const usePeerConnection = () => {
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
   const [messages, setMessages] = useState<{ id: string; peerId: string; text: string; self?: boolean; time: number; status: 'sent' | 'delivered' | 'read' }[]>([]);
   const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
+  const [isPeerReady, setIsPeerReady] = useState(false);
 
   const { features } = useLicense(); // Get license features
 
@@ -50,7 +51,15 @@ export const usePeerConnection = () => {
     // Listen for ready event
     const handleReady = (data: { peerId: string }) => {
       setPeerId(data.peerId);
+      setIsPeerReady(true);
     };
+
+    // Check initial state in case we missed event
+    if (peerServiceInstance!.isSignalingConnected()) {
+      setIsPeerReady(true);
+    }
+    // ...
+
 
     const handleConnection = (data: { peerId: string; deviceInfo?: { username?: string } }) => {
       setConnections(prev => {
@@ -335,6 +344,7 @@ export const usePeerConnection = () => {
   return {
     peerId,
     username,
+    isPeerReady,
     connections,
     files,
     messages,

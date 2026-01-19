@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock, Settings, Shield, Copy, Check } from 'lucide-react';
+import { Share2, Upload, Users, X, QrCode, Scan, MessageSquare, Zap, Clock, Settings, Shield, Copy, Check, Link } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,7 +39,8 @@ export function Home() {
         sendZip,
         typingStatus,
         sendTyping,
-        markMessageAsRead
+        markMessageAsRead,
+        isPeerReady
     } = usePeerConnection();
 
     // const { isEnterpriseMode, licenseType } = useLicense();
@@ -88,6 +89,37 @@ export function Home() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+
+    const handleShareLink = () => {
+        const link = `${window.location.origin}/?connect=${peerId}`;
+        navigator.clipboard.writeText(link);
+        toast.success('Connection link copied!');
+        analytics.trackEvent('Connection', 'ShareLink', 'Click');
+    };
+
+    // Auto-Connect from URL
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const connectTo = params.get('connect');
+
+        // Wait until our own Peer is fully ready (signaling connected) AND username is set
+        if (isPeerReady && username && connectTo && connectTo !== peerId && peerId) {
+            // Only connect if we have our own ID and it's not us
+            // Check if already connected/pending to avoid spam
+            const isConnected = connections.some(c => c.id === connectTo);
+            const isPending = pendingConnections.some(p => p.id === connectTo);
+
+            if (!isConnected && !isPending) {
+                toast(`Auto-connecting to ${connectTo.substring(0, 8)}...`);
+                connectToPeer(connectTo);
+
+                // Optional: Clean URL
+                const url = new URL(window.location.href);
+                url.searchParams.delete('connect');
+                window.history.replaceState({}, '', url);
+            }
+        }
+    }, [isPeerReady, username, peerId, connectToPeer, connections, pendingConnections]);
 
     const handleFileSelect = useCallback(
         async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,6 +325,13 @@ export function Home() {
                                     >
                                         <QrCode className="w-4 h-4 text-primary" />
                                         Show QR
+                                    </button>
+                                    <button
+                                        onClick={handleShareLink}
+                                        className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border bg-white hover:bg-muted/50 text-foreground transition-all text-sm font-medium"
+                                    >
+                                        <Link className="w-4 h-4 text-primary" />
+                                        Share Link to Connect
                                     </button>
                                 </div>
 
