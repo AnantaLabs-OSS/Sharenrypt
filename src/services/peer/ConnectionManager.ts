@@ -323,6 +323,16 @@ export class ConnectionManager extends EventEmitter {
             });
         }
 
+        // Check if we ALREADY have the handshake data (likely yes)
+        if (this.peerDeviceInfo.has(peerId)) {
+            console.log('Handshake already received for:', peerId);
+            toast.dismiss('accepting');
+            toast.success(`Connected!`);
+            this.emit('connection', { peerId, deviceInfo: this.peerDeviceInfo.get(peerId) });
+            return;
+        }
+
+        // Otherwise wait for it
         const handshakeHandler = (data: DeviceInfo) => {
             if (data.peerId === peerId) {
                 toast.dismiss('accepting');
