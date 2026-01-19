@@ -34,13 +34,21 @@ export class TransferManager extends EventEmitter {
                 return;
             }
 
-            let zipName = 'Archive.zip';
-            if (files[0].webkitRelativePath) {
-                const parts = files[0].webkitRelativePath.split('/');
-                if (parts.length > 1) zipName = parts[0] + '.zip';
-            } else if (files.length === 1) {
-                zipName = files[0].name + '.zip';
-            }
+            // Current User (Sender) Name
+            const username = this.connectionManager.getUsername() || 'Anon';
+            const safeUsername = username.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+            // Timestamp: YYYYMMDD_HHMMSS
+            const now = new Date();
+            const timestamp =
+                now.getFullYear() +
+                String(now.getMonth() + 1).padStart(2, '0') +
+                String(now.getDate()).padStart(2, '0') + '_' +
+                String(now.getHours()).padStart(2, '0') +
+                String(now.getMinutes()).padStart(2, '0') +
+                String(now.getSeconds()).padStart(2, '0');
+
+            let zipName = `${safeUsername}_${timestamp}.zip`;
 
             await this.streamAndSend(targetPeerId, stream as unknown as ReadableStream<Uint8Array>, {
                 name: zipName,
