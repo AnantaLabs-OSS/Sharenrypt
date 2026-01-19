@@ -155,7 +155,7 @@ export class TransferManager extends EventEmitter {
             const worker = new Worker(new URL('../../workers/encryption.worker.ts', import.meta.url), { type: 'module' });
 
             let offset = startingOffset;
-            const startTime = Date.now();
+            // const startTime = Date.now();
 
             const reader = stream.getReader();
 
@@ -420,7 +420,12 @@ export class TransferManager extends EventEmitter {
                 transfer.chunks = []; // clear memory
             }
 
-            toast.success(`Received ${transfer.name}!`);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+            if (isIOS) {
+                toast.success(`Saved to 'Files' app! Open Files app to view/save to Photos.`, { duration: 5000 });
+            } else {
+                toast.success(`Received ${transfer.name}!`);
+            }
             playSound('success');
 
             this.emit('file-received', {
