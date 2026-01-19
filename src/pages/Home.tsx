@@ -95,36 +95,59 @@ export function Home() {
             if (selectedMap && selectedMap.length > 0 && connections.length > 0) {
                 const fileList = Array.from(selectedMap);
 
+                // Standard input cannot select folders easily (unless webkitdirectory is set, which isn't).
+                // So we assume all selections here are individual files.
+                // Queue them up.
                 try {
-                    if (fileList.length > 1) {
-                        await sendZip(connections[0].id, fileList);
-                        analytics.trackEvent('File', 'SelectBatch', 'Input', fileList.length);
-                    } else {
-                        await sendFile(fileList[0], connections[0].id);
-                        analytics.trackEvent('File', 'Select', 'Input', fileList[0].size);
+                    toast('Queueing ' + fileList.length + ' files...');
+                    for (const file of fileList) {
+                        try {
+                            await sendFile(file, connections[0].id);
+                            // Small delay to prevent flooding if needed?
+                            // await new Promise(r => setTimeout(r, 100)); 
+                        } catch (err) {
+                            console.error("Failed to send file", file.name, err);
+                            toast.error(`Failed to send ${file.name}`);
+                        }
                     }
+                    analytics.trackEvent('File', 'SelectBatch', 'Input', fileList.length);
                 } catch (error: any) {
                     toast.error(error.message || 'File transfer failed');
                     console.error('Transfer error:', error);
                 }
             }
         },
-        [connections, sendFile, sendZip]
+        [connections, sendFile]
     );
 
     const handleFileDrop = useCallback(
         async (droppedFiles: File[]) => {
             if (droppedFiles && droppedFiles.length > 0 && connections.length > 0) {
-                // If multiple files or folder structure detected, use Zip
-                const shouldZip = droppedFiles.length > 1 || (droppedFiles[0] as any).webkitRelativePath?.includes('/');
+                // Heuristic: If files have webkitRelativePath with slashes, it's likely a folder structure.
+                // If it's just multiple files dragged, usually paths are empty or flat.
+                // We check if the FIRST file looks like it's inside a folder.
+                const firstFile = droppedFiles[0] as any;
+                const looksLikeFolder = droppedFiles.length > 1 &&
+                    firstFile.webkitRelativePath &&
+                    firstFile.webkitRelativePath.includes('/');
 
                 try {
-                    if (shouldZip) {
+                    if (looksLikeFolder) {
+                        // Zip the folder structure
                         await sendZip(connections[0].id, droppedFiles);
-                        analytics.trackEvent('File', 'DropBatch', 'Overlay', droppedFiles.length);
+                        analytics.trackEvent('File', 'DropFolder', 'Overlay', droppedFiles.length);
                     } else {
-                        await sendFile(droppedFiles[0], connections[0].id);
-                        analytics.trackEvent('File', 'Drop', 'Overlay', droppedFiles[0].size);
+                        // Queue valid individual files
+                        toast('Queueing ' + droppedFiles.length + ' files...');
+                        for (const file of droppedFiles) {
+                            try {
+                                await sendFile(file, connections[0].id);
+                            } catch (err) {
+                                console.error("Failed to send file", file.name, err);
+                                toast.error(`Failed to send ${file.name}`);
+                            }
+                        }
+                        analytics.trackEvent('File', 'DropBatch', 'Overlay', droppedFiles.length);
                     }
                 } catch (error: any) {
                     toast.error(error.message || 'File transfer failed');

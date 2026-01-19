@@ -28,15 +28,4 @@ export const ENTERPRISE_FEATURES = {
     prioritySupport: true,
 };
 
-// "The Binary" Logic - Mocked for this environment
-// In a real scenario, this file would be excluded from the open source repo
-export class ProprietaryLogic {
-    static validateLicense(_key: string): Promise<{ valid: boolean; type: 'pro' | 'enterprise' }> {
-        // Mock Validation Logic - In real binary this is compiled code
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve({ valid: true, type: 'pro' });
-            }, 500);
-        });
-    }
-}
+
