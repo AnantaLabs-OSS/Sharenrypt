@@ -10,9 +10,21 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        runtimeCaching: [
+          {
+            urlPattern: /.*/,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'no-cache-storage',
+            },
+          },
+        ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globIgnores: ['**/robots.txt', '**/sitemap.xml'],
-        navigateFallbackDenylist: [/^\/robots.txt$/, /^\/sitemap.xml$/]
+        navigateFallback: null, // Disable fallback to index.html for specific disabling of SPA offline cache
       },
       manifest: {
         name: 'Sharenrypt P2P',

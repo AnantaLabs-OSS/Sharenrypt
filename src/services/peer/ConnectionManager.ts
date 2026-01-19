@@ -98,6 +98,27 @@ export class ConnectionManager extends EventEmitter {
 
         this.peer.on('connection', (conn) => {
             console.log('Incoming connection from:', conn.peer);
+
+            // Check for existing connection (reconnection attempt)
+            if (this.connections.has(conn.peer)) {
+                console.log('Already connected to', conn.peer, 'closing old connection');
+                const oldConn = this.connections.get(conn.peer);
+                if (oldConn) {
+                    oldConn.close();
+                    this.connections.delete(conn.peer);
+                    this.peerDeviceInfo.delete(conn.peer);
+                    this.emit('disconnection', { peerId: conn.peer });
+                }
+            }
+
+            // Cleanup any existing pending request from same peer
+            if (this.pendingConnections.has(conn.peer)) {
+                console.log('Replacing pending connection from', conn.peer);
+                const oldPending = this.pendingConnections.get(conn.peer);
+                if (oldPending) oldPending.close();
+                this.pendingConnections.delete(conn.peer);
+            }
+
             this.pendingConnections.set(conn.peer, conn);
 
             conn.on('open', () => {
@@ -249,8 +270,10 @@ export class ConnectionManager extends EventEmitter {
                     // Handshake
                     this.sendHandshake(conn);
 
+                    let handshakeTimeout: NodeJS.Timeout; // Define in scope for cleanup access
+
                     // Wait for handshake response
-                    const handshakeTimeout = setTimeout(() => {
+                    handshakeTimeout = setTimeout(() => {
                         // toast.error('Handshake timeout');
                     }, 5000);
 
@@ -284,6 +307,7 @@ export class ConnectionManager extends EventEmitter {
                 conn.on('close', () => {
                     if (this.connectionStatus === 'connecting') {
                         clearTimeout(timeout);
+                        clearTimeout(handshakeTimeout); // Ensure this is definitely cleared
                         toast.dismiss('connecting');
                         toast.error('Connection closed unexpectedly');
                         this.connectionStatus = 'failed';
