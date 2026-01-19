@@ -10,10 +10,10 @@ export interface LicenseConfig {
 }
 
 export const FREE_FEATURES = {
-    unlimitedSize: false,
-    customTurn: false,
-    history: false,
-    customId: false,
+    unlimitedSize: true,
+    customTurn: true,
+    history: true,
+    customId: true,
 };
 
 export const PRO_FEATURES = {
@@ -31,18 +31,12 @@ export const ENTERPRISE_FEATURES = {
 // "The Binary" Logic - Mocked for this environment
 // In a real scenario, this file would be excluded from the open source repo
 export class ProprietaryLogic {
-    static validateLicense(key: string): Promise<{ valid: boolean; type: 'pro' | 'enterprise' }> {
+    static validateLicense(_key: string): Promise<{ valid: boolean; type: 'pro' | 'enterprise' }> {
         // Mock Validation Logic - In real binary this is compiled code
         return new Promise((resolve) => {
             setTimeout(() => {
-                if (key.startsWith('ENT-')) {
-                    resolve({ valid: true, type: 'enterprise' });
-                } else if (key.startsWith('PRO-')) { // Mock key or Lemon Squeezy logic here
-                    resolve({ valid: true, type: 'pro' });
-                } else {
-                    resolve({ valid: false, type: 'pro' }); // Default fail
-                }
-            }, 1000);
+                resolve({ valid: true, type: 'pro' });
+            }, 500);
         });
     }
 }

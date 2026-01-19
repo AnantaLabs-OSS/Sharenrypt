@@ -14,8 +14,7 @@ import { HistoryDialog } from '../components/HistoryDialog';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { DragDropOverlay } from '../components/DragDropOverlay';
 import { analytics } from '../utils/analytics';
-import { useLicense } from '../context/LicenseContext';
-import { EnterpriseSetup } from '../components/EnterpriseSetup';
+// import { EnterpriseSetup } from '../components/EnterpriseSetup';
 import { ConnectionRequest } from '../components/ConnectionRequest';
 import { HomeSEOContent } from '../components/HomeSEOContent';
 import { SEO } from '../components/SEO';
@@ -43,7 +42,7 @@ export function Home() {
         markMessageAsRead
     } = usePeerConnection();
 
-    const { isEnterpriseMode, licenseType } = useLicense();
+    // const { isEnterpriseMode, licenseType } = useLicense();
 
     const [showQR, setShowQR] = useState(false);
     const [showScanner, setShowScanner] = useState(false);
@@ -74,10 +73,7 @@ export function Home() {
         setShowConnectDialog(true);
     }, []);
 
-    // Enterprise Enforcement
-    if (isEnterpriseMode && licenseType !== 'enterprise') {
-        return <EnterpriseSetup />;
-    }
+    // Enterprise Enforcement Logic Removed
 
     const handleConnectSubmit = useCallback(() => {
         if (targetPeerId.trim()) {

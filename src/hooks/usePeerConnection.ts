@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-// import { PeerService } from '../services/peerService';
-import { WasmPeerService as PeerService } from '../services/wasmPeerService';
+import { PeerService } from '../services/peerService';
+// import { WasmPeerService as PeerService } from '../services/wasmPeerService';
 import { FileTransfer, PeerConnection } from '../types';
 import { HistoryService } from '../services/historyService';
 import { useLicense } from '../context/LicenseContext';
