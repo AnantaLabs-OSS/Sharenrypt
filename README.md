@@ -12,12 +12,12 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 
 ## ✨ Features
 
-✅ **Unlimited & Secure** - Share 100GB+ files directly via WebRTC with AES-GCM encryption. No servers, no tracking.
-✅ **Background Zipping** - Dropped folders are automatically zipped in a background thread for lag-free performance. ⚡
-✅ **Smart Connectivity** - Intelligent auto-retry logic with STUN/TURN traversal ensures 99% global success rates. 🌐
-✅ **Power User Tools** - Paste anywhere (**Ctrl+V**) to send, drag & drop folders, or scan QR codes for instant mobile pairing. 🚀
-✅ **True Peer-to-Peer** - Direct browser-to-browser connection. No data touches the cloud. 🔒
-✅ **Cosmic Glass UI** - A premium, responsive implementation using React 18, Tailwind, and Framer Motion. 🎨
+- ✅ **Unlimited & Secure** - Share 100GB+ files directly via WebRTC with AES-GCM encryption. No servers, no tracking.
+- ✅ **Background Zipping** - Dropped folders are automatically zipped in a background thread for lag-free performance. ⚡
+- ✅ **Smart Connectivity** - Intelligent auto-retry logic with STUN/TURN traversal ensures 99% global success rates. 🌐
+- ✅ **Power User Tools** - Paste anywhere (**Ctrl+V**) to send, drag & drop folders, or scan QR codes for instant mobile pairing. 🚀
+- ✅ **True Peer-to-Peer** - Direct browser-to-browser connection. No data touches the cloud. 🔒
+- ✅ **Cosmic Glass UI** - A premium, responsive implementation using React 18, Tailwind, and Framer Motion. 🎨
 
 ---
 
