@@ -265,7 +265,10 @@ export function Home() {
                         targetPeerId={targetPeerId}
                         setTargetPeerId={setTargetPeerId}
                         onConnect={handleConnectSubmit}
-                        onCancel={() => setShowConnectDialog(false)}
+                        onCancel={() => {
+                            if (targetPeerId) disconnectPeer(targetPeerId);
+                            setShowConnectDialog(false);
+                        }}
                         connectionStatus={connectionStatus}
                         onRetry={() => retryConnection(targetPeerId)}
                         onScanClick={() => setShowScanner(true)}

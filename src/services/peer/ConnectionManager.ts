@@ -220,6 +220,8 @@ export class ConnectionManager extends EventEmitter {
         };
     }
 
+    private cancelledAttempts: Set<string> = new Set();
+
     public async connectToPeer(targetPeerId: string): Promise<boolean> {
         if (!this.peer) {
             toast.error('P2P network not initialized');
@@ -236,6 +238,9 @@ export class ConnectionManager extends EventEmitter {
             return false;
         }
 
+        // Reset cancellation state for this peer
+        this.cancelledAttempts.delete(targetPeerId);
+
         this.connectionStatus = 'connecting';
         toast.loading('Establishing P2P connection...', { id: 'connecting' });
 
@@ -244,10 +249,17 @@ export class ConnectionManager extends EventEmitter {
         let rejected = false;
 
         while (attempt < MAX_RETRIES && !this.connections.has(targetPeerId) && !rejected) {
+            // Check for cancellation
+            if (this.cancelledAttempts.has(targetPeerId)) {
+                console.log(`Connection attempt to ${targetPeerId} was cancelled by user.`);
+                toast.dismiss('connecting');
+                this.connectionStatus = 'idle'; // Reset status
+                return false;
+            }
+
             attempt++;
             if (attempt > 1) {
                 console.log(`Retrying connection to ${targetPeerId} (Attempt ${attempt}/${MAX_RETRIES})`);
-                // Silent retry, but maybe update the loading toast text?
                 toast.loading(`Connection attempt ${attempt}/${MAX_RETRIES}...`, { id: 'connecting' });
             }
 
@@ -262,6 +274,14 @@ export class ConnectionManager extends EventEmitter {
                 return true;
             }
 
+            // Check for cancellation again after attempt
+            if (this.cancelledAttempts.has(targetPeerId)) {
+                console.log(`Connection attempt to ${targetPeerId} was cancelled by user.`);
+                toast.dismiss('connecting');
+                this.connectionStatus = 'idle';
+                return false;
+            }
+
             // If rejected, break immediately
             if (rejected) {
                 toast.dismiss('connecting');
@@ -269,10 +289,15 @@ export class ConnectionManager extends EventEmitter {
                 return false;
             }
 
-            // Wait a bit before retrying to avoid spamming
+            // Wait a bit before retrying
             if (attempt < MAX_RETRIES) {
                 await new Promise(r => setTimeout(r, 1500));
             }
+        }
+
+        if (this.cancelledAttempts.has(targetPeerId)) {
+            // Already handled
+            return false;
         }
 
         toast.dismiss('connecting');
@@ -495,14 +520,29 @@ export class ConnectionManager extends EventEmitter {
     }
 
     public disconnectPeer(peerId: string): void {
+        // Mark as cancelled to stop any pending retry loops
+        this.cancelledAttempts.add(peerId);
+
         const conn = this.connections.get(peerId);
         if (conn) {
             conn.close();
         }
+
+        // Also clean up pending connections immediately
+        const pending = this.pendingConnections.get(peerId);
+        if (pending) {
+            pending.close();
+            this.pendingConnections.delete(peerId);
+        }
+
         this.connections.delete(peerId);
         this.peerDeviceInfo.delete(peerId);
         this.emit('disconnection', { peerId });
-        toast.success('Disconnected');
+
+        // Only show toast if it was a connected peer
+        if (conn) {
+            toast.success('Disconnected');
+        }
     }
 
     private sendHandshake(conn: DataConnection): void {
