@@ -12,23 +12,12 @@ Perfect for final year projects, demos, and privacy-focused file sharing! 🎓
 
 ## ✨ Features
 
-✅ **Cosmic Glass UI** - Stunning dark mode with glassmorphism and animated Aurora backgrounds  
-✅ **Smart Auto-Retry** - Intelligent connection handling that retries on failure but respects user rejection  
-✅ **True Peer-to-Peer** - Direct browser-to-browser file transfers using WebRTC  
-✅ **Unlimited File Sizes** - Streaming Support via FileSystem Access API 🚀  
-✅ **Background Zipping** - Web Worker powered zipping for massive file batches (iOS friendly) ⚡  
-✅ **Clipboard Paste** - **Ctrl+V** anywhere to instantly send screenshots or files �  
-✅ **QR Code Integration** - Scan to connect instantly directly from the connection dialog 📱  
-✅ **Transfer Resumability** - Auto-resume interrupted transfers �  
-✅ **Progressive Web App (PWA)** - Installable, caching-optimized for freshness 📱  
-✅ **Rich Chat** - Usernames, Read Receipts (✓✓), and Emoji Support 💬  
-✅ **End-to-End Encryption** - DTLS + AES-GCM 256-bit encryption  
-✅ **100% FREE** - No server costs, uses free cloud services  
-✅ **Global Reach** - Works worldwide with STUN/TURN support  
-✅ **Fast Transfers** - Up to **10-100x faster** than relay servers  
-✅ **NAT Traversal** - 99%+ connection success rate  
-✅ **Drag & Drop** - Drag files anywhere to share instantly 📂  
-✅ **Transfer History** - View detailed log of sent and received files 📜  
+✅ **Unlimited & Secure** - Share 100GB+ files directly via WebRTC with AES-GCM encryption. No servers, no tracking.
+✅ **Background Zipping** - Dropped folders are automatically zipped in a background thread for lag-free performance. ⚡
+✅ **Smart Connectivity** - Intelligent auto-retry logic with STUN/TURN traversal ensures 99% global success rates. 🌐
+✅ **Power User Tools** - Paste anywhere (**Ctrl+V**) to send, drag & drop folders, or scan QR codes for instant mobile pairing. 🚀
+✅ **True Peer-to-Peer** - Direct browser-to-browser connection. No data touches the cloud. 🔒
+✅ **Cosmic Glass UI** - A premium, responsive implementation using React 18, Tailwind, and Framer Motion. 🎨
 
 ---
 
