@@ -23,22 +23,57 @@ export class TransferManager extends EventEmitter {
 
     public async sendZip(targetPeerId: string, files: File[]): Promise<void> {
         try {
-            const { ZipService } = await import('../../services/zipService');
+            toast.loading("Preparing zip in background...", { id: 'zipping' });
 
-            const totalSize = await ZipService.getZipSizePrediction(files);
-            const response = ZipService.createZipStream(files);
-            const stream = response.body;
+            const worker = new Worker(new URL('../../workers/zip.worker.ts', import.meta.url), { type: 'module' });
 
-            if (!stream) {
-                toast.error("Failed to create zip stream");
-                return;
-            }
+            const result = await new Promise<{ stream: ReadableStream<Uint8Array>, size: number }>((resolve, reject) => {
+                worker.onmessage = (e) => {
+                    const { type, payload } = e.data;
+                    if (type === 'zip-created') {
+                        resolve(payload);
+                    } else if (type === 'error') {
+                        reject(new Error(payload.error));
+                    }
+                };
+                worker.onerror = (e) => reject(e);
+
+                // Post files to worker
+                worker.postMessage({ type: 'create-zip', payload: { files } });
+            });
+
+            // We can terminate the worker immediately after getting the stream? 
+            // No, the stream is pulled from the worker, so the worker might need to stay alive until stream starts?
+            // Actually, with Transferable streams, the underlying source moves. But for client-zip, it might be generating on demand.
+            // Safe bet: Terminate worker ONLY after stream ends. 
+            // BUT TransferManager.streamAndSend doesn't accept a "cleanup" callback.
+            // However, readable streams transferred from workers usually keep the worker port active until closed.
+            // Let's rely on garbage collection or explicit terminate if we can. 
+            // For now, we won't terminate 'worker' explicitly here because 'stream' depends on it? 
+            // Actually, if we transferred the stream, it's detached. But client-zip is a generator.
+            // Let's assume standard behavior: The worker needs to run while the stream is being read.
+            // We can attach a 'close' listener to the stream implicitly by wrapping it?
+            // Or just leave the worker to GC (it will terminate when the script ends if not held?). 
+            // Actually, explicit termination is better. Let's wrap the stream? 
+            // For simplicity in this step, I will let the worker live. The browser cleans up terminated workers.
+            // Wait, if I don't terminate it, it leaks.
+            // Solution: streamAndSend consumes the stream. I can't easily hook into its lifecycle easily without changing streamAndSend signature.
+            // ALTERNATIVE: just let the worker run. It's one worker per zip. Ideally we terminate it.
+            // Let's rely on the fact that once the stream is fully read (in streamAndSend), we are done.
+            // I'll make a minor change to streamAndSend to clear it? No, too invasive.
+            // I will use a simple "terminate on 10 minutes timeout" or rely on the fact that `client-zip` finishes quickly?
+            // No, `client-zip` generates bytes AS YOU READ. So the worker MUST be alive during upload.
+            // I will accept the minor leak risk (one worker per zip upload) or assume the user refreshes.
+            // BETTER: Add a `onComplete` callback to streamAndSend?
+
+            // Let's just use the worker for "preparation" if possible? No, it streams.
+            // OK, I will modify `streamAndSend` to take an optional `onComplete` callback to terminate the worker.
+
+            toast.dismiss('zipping');
 
             // Current User (Sender) Name
             const username = this.connectionManager.getUsername() || 'Anon';
             const safeUsername = username.replace(/[^a-zA-Z0-9._-]/g, '_');
-
-            // Timestamp: YYYYMMDD_HHMMSS
             const now = new Date();
             const timestamp =
                 now.getFullYear() +
@@ -50,13 +85,15 @@ export class TransferManager extends EventEmitter {
 
             let zipName = `${safeUsername}_${timestamp}.zip`;
 
-            await this.streamAndSend(targetPeerId, stream as unknown as ReadableStream<Uint8Array>, {
+            await this.streamAndSend(targetPeerId, result.stream, {
                 name: zipName,
-                size: totalSize,
+                size: result.size,
                 type: 'application/zip'
-            });
+            }, 0, () => worker.terminate()); // Passing terminate as callback
+
         } catch (e) {
             console.error("Zip error", e);
+            toast.dismiss('zipping');
             toast.error("Failed to prepare zip");
         }
     }
@@ -105,7 +142,8 @@ export class TransferManager extends EventEmitter {
         targetPeerId: string,
         stream: ReadableStream<Uint8Array>,
         metadata: { name: string; size: number; type: string },
-        startingOffset: number = 0
+        startingOffset: number = 0,
+        onComplete?: () => void
     ): Promise<void> {
         const conn = this.connectionManager.getConnection(targetPeerId);
 
@@ -240,12 +278,14 @@ export class TransferManager extends EventEmitter {
             transfer.progress = 100;
             this.emit('file-progress', transfer);
 
+            if (onComplete) onComplete();
         } catch (error) {
             console.error('File send error:', error);
             toast.dismiss('encrypting');
             toast.error('Failed to send file');
             this.releaseWakeLock();
             this.emit('error', { error });
+            if (onComplete) onComplete();
         }
     }
 

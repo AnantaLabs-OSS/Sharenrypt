@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Users, X, Loader2, RefreshCw } from 'lucide-react';
+import { Users, X, Loader2, RefreshCw, Scan } from 'lucide-react';
 
 interface ConnectionDialogProps {
   targetPeerId: string;
@@ -10,6 +10,7 @@ interface ConnectionDialogProps {
   onCancel: () => void;
   connectionStatus: 'idle' | 'connecting' | 'connected' | 'failed';
   onRetry: () => void;
+  onScanClick: () => void;
 }
 
 export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
@@ -19,6 +20,7 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
   onCancel,
   connectionStatus,
   onRetry,
+  onScanClick,
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,19 +58,29 @@ export const ConnectionDialog: React.FC<ConnectionDialogProps> = ({
         <div className="p-6">
           {connectionStatus === 'idle' && (
             <form onSubmit={handleSubmit}>
-              <div className="mb-6">
+              <div className="mb-6 relative">
                 <label htmlFor="peerId" className="block text-sm font-medium text-muted-foreground mb-2">
                   Enter Peer ID
                 </label>
-                <input
-                  type="text"
-                  id="peerId"
-                  value={targetPeerId}
-                  onChange={(e) => setTargetPeerId(e.target.value)}
-                  className="w-full bg-background border border-input rounded-md px-4 py-3 text-foreground focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-muted-foreground/50"
-                  placeholder="Paste peer ID here..."
-                  autoFocus
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="peerId"
+                    value={targetPeerId}
+                    onChange={(e) => setTargetPeerId(e.target.value)}
+                    className="flex-1 bg-background border border-input rounded-md px-4 py-3 text-foreground focus:ring-1 focus:ring-ring outline-none transition-all placeholder:text-muted-foreground/50"
+                    placeholder="Paste peer ID here..."
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={onScanClick}
+                    className="px-4 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 rounded-md transition-colors flex items-center justify-center"
+                    title="Scan QR Code"
+                  >
+                    <Scan className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               <div className="flex space-x-3">
                 <motion.button

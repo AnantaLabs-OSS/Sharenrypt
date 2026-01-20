@@ -1,9 +1,24 @@
 import React, { createContext, useContext } from 'react';
-import { PRO_FEATURES, LicenseConfig } from '../proprietary';
+
+// Inlined configuration for Open Source version
+export interface LicenseConfigFeatures {
+    unlimitedSize: boolean;
+    customTurn: boolean;
+    history: boolean;
+    customId: boolean;
+    prioritySupport?: boolean;
+}
+
+const PRO_FEATURES: LicenseConfigFeatures = {
+    unlimitedSize: true,
+    customTurn: true,
+    history: true,
+    customId: true,
+};
 
 interface LicenseContextType {
     licenseType: 'free' | 'pro' | 'enterprise';
-    features: LicenseConfig['features'];
+    features: LicenseConfigFeatures;
     activateLicense: (key: string) => Promise<{ success: boolean; error?: string }>;
     isEnterpriseMode: boolean;
     isLoading: boolean;

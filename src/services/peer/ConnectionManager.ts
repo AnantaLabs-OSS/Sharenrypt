@@ -236,11 +236,54 @@ export class ConnectionManager extends EventEmitter {
             return false;
         }
 
-        try {
-            this.connectionStatus = 'connecting';
-            toast.loading('Establishing P2P connection...', { id: 'connecting' });
+        this.connectionStatus = 'connecting';
+        toast.loading('Establishing P2P connection...', { id: 'connecting' });
 
-            const conn = this.peer.connect(targetPeerId, {
+        const MAX_RETRIES = 5;
+        let attempt = 0;
+        let rejected = false;
+
+        while (attempt < MAX_RETRIES && !this.connections.has(targetPeerId) && !rejected) {
+            attempt++;
+            if (attempt > 1) {
+                console.log(`Retrying connection to ${targetPeerId} (Attempt ${attempt}/${MAX_RETRIES})`);
+                // Silent retry, but maybe update the loading toast text?
+                toast.loading(`Connection attempt ${attempt}/${MAX_RETRIES}...`, { id: 'connecting' });
+            }
+
+            const success = await this.attemptConnection(targetPeerId, (isRejected) => {
+                if (isRejected) {
+                    rejected = true;
+                }
+            });
+
+            if (success) {
+                toast.dismiss('connecting');
+                return true;
+            }
+
+            // If rejected, break immediately
+            if (rejected) {
+                toast.dismiss('connecting');
+                toast.error('Connection rejected by user');
+                return false;
+            }
+
+            // Wait a bit before retrying to avoid spamming
+            if (attempt < MAX_RETRIES) {
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
+
+        toast.dismiss('connecting');
+        toast.error('Failed to connect after multiple attempts');
+        this.connectionStatus = 'failed';
+        return false;
+    }
+
+    private async attemptConnection(targetPeerId: string, onReject: (rejected: boolean) => void): Promise<boolean> {
+        try {
+            const conn = this.peer!.connect(targetPeerId, {
                 reliable: true,
                 serialization: 'binary',
                 metadata: {
@@ -249,37 +292,62 @@ export class ConnectionManager extends EventEmitter {
             });
 
             return new Promise((resolve) => {
+                let handshakeTimeout: NodeJS.Timeout;
+                let handshakeHandler: (data: DeviceInfo) => void;
+                let rejectionHandler: (data: unknown) => void;
+
+                // Cleanup helper
+                const cleanup = () => {
+                    clearTimeout(timeout);
+                    clearTimeout(handshakeTimeout);
+                    if (handshakeHandler) {
+                        this.off('handshake-complete', handshakeHandler);
+                    }
+                    if (rejectionHandler) {
+                        conn.off('data', rejectionHandler);
+                    }
+                };
+
+                // Listen for rejection SPECIFICALLY on this connection
+                rejectionHandler = (data: unknown) => {
+                    const message = data as any;
+                    if (message && message.type === 'connection-rejected') {
+                        console.log('Received rejection signal');
+                        cleanup();
+                        onReject(true);
+                        conn.close();
+                        resolve(false);
+                    }
+                };
+                conn.on('data', rejectionHandler);
+
+
                 let timeout = setTimeout(() => {
-                    toast.dismiss('connecting');
-                    toast.error('Connection timeout');
-                    this.connectionStatus = 'failed';
+                    cleanup();
+                    // Don't toast here, allow retry loop to handle notifications
+                    // toast.error('Connection timeout');
+                    conn.close();
                     resolve(false);
-                }, 45000);
+                }, 15000); // Shorter timeout per attempt (15s)
 
                 conn.on('open', () => {
                     clearTimeout(timeout);
-                    toast.dismiss('connecting');
-                    console.log('Connection opened, initiating handshake...');
-
-                    this.connections.set(targetPeerId, conn);
-                    // Emit internal event so TransferManager can listen
-                    this.emit('new-connection', { peerId: targetPeerId, conn });
+                    console.log('Connection opened (attempt), seeking handshake...');
 
                     this.setupDataListeners(conn, targetPeerId);
-
-                    // Handshake
                     this.sendHandshake(conn);
 
-                    let handshakeTimeout: NodeJS.Timeout; // Define in scope for cleanup access
-
                     // Wait for handshake response
-                    handshakeTimeout = setTimeout(() => {
-                        // toast.error('Handshake timeout');
-                    }, 5000);
+                    // If we get it, WE ARE GOOD.
+                    // If we don't, we might eventually time out or be rejected.
 
-                    const handshakeHandler = (data: DeviceInfo) => {
+                    handshakeHandler = (data: DeviceInfo) => {
                         if (data.peerId === targetPeerId) {
-                            clearTimeout(handshakeTimeout);
+                            cleanup();
+                            // Success!
+                            this.connections.set(targetPeerId, conn);
+                            this.emit('new-connection', { peerId: targetPeerId, conn });
+
                             const deviceInfo = this.peerDeviceInfo.get(targetPeerId);
                             const peerName = deviceInfo ? deviceInfo.deviceName : targetPeerId.substring(0, 8);
 
@@ -288,39 +356,36 @@ export class ConnectionManager extends EventEmitter {
 
                             this.connectionStatus = 'connected';
                             this.emit('connection', { peerId: targetPeerId, deviceInfo });
-                            this.off('handshake-complete', handshakeHandler);
                             resolve(true);
                         }
                     };
                     this.on('handshake-complete', handshakeHandler);
+
+                    // Specific handshake timeout for this opened connection
+                    handshakeTimeout = setTimeout(() => {
+                        console.warn('Handshake timed out (connected but no data)');
+                        // We resolve false to trigger a retry (maybe they didn't get our handshake?)
+                        cleanup();
+                        conn.close();
+                        resolve(false);
+                    }, 5000);
                 });
 
                 conn.on('error', (error) => {
-                    clearTimeout(timeout);
-                    toast.dismiss('connecting');
-                    console.error('Connection error:', error);
-                    toast.error('Failed to connect');
-                    this.connectionStatus = 'failed';
+                    cleanup();
+                    console.error('Connection error (attempt):', error);
                     resolve(false);
                 });
 
                 conn.on('close', () => {
-                    if (this.connectionStatus === 'connecting') {
-                        clearTimeout(timeout);
-                        clearTimeout(handshakeTimeout); // Ensure this is definitely cleared
-                        toast.dismiss('connecting');
-                        toast.error('Connection closed unexpectedly');
-                        this.connectionStatus = 'failed';
-                        resolve(false);
-                    }
+                    // If we are connecting, this is a failure
+                    cleanup();
+                    resolve(false);
                 });
             });
 
         } catch (error) {
-            toast.dismiss('connecting');
-            console.error('Connect error:', error);
-            toast.error('Failed to connect');
-            this.connectionStatus = 'failed';
+            console.error('Connect attempt error:', error);
             return false;
         }
     }
@@ -334,7 +399,6 @@ export class ConnectionManager extends EventEmitter {
         this.connections.set(peerId, conn);
 
         // Listeners are already attached in 'connection' event
-        // this.setupDataListeners(conn, peerId); 
         this.emit('new-connection', { peerId, conn });
 
         const initiateHandshake = () => {
@@ -363,6 +427,8 @@ export class ConnectionManager extends EventEmitter {
 
         // Otherwise wait for it, but with a timeout fallback
         // This fixes the "Accept button not working" hang on iOS if handshake packet is lost/delayed
+        let fallbackTimeout: NodeJS.Timeout;
+
         const handshakeHandler = (data: DeviceInfo) => {
             if (data.peerId === peerId) {
                 clearTimeout(fallbackTimeout);
@@ -374,30 +440,55 @@ export class ConnectionManager extends EventEmitter {
         };
         this.on('handshake-complete', handshakeHandler);
 
-        const fallbackTimeout = setTimeout(() => {
-            console.warn('Handshake timed out during accept, forcing connection success');
-            this.off('handshake-complete', handshakeHandler);
-            toast.dismiss('accepting');
-            toast.success('Connected (Handshake incomplete)');
+        fallbackTimeout = setTimeout(() => {
+            // CRITICAL CHECK: Only force success IF the connection is actually open
+            if (conn.open) {
+                console.warn('Handshake timed out during accept, forcing connection success');
+                this.off('handshake-complete', handshakeHandler);
+                toast.dismiss('accepting');
+                toast.success('Connected (Handshake incomplete)');
 
-            // Register basic info since we missed the handshake
-            if (!this.peerDeviceInfo.has(peerId)) {
-                this.peerDeviceInfo.set(peerId, {
-                    peerId,
-                    deviceName: 'Unknown Device',
-                    browser: 'Unknown',
-                    timestamp: Date.now()
-                });
+                // Register basic info since we missed the handshake
+                if (!this.peerDeviceInfo.has(peerId)) {
+                    this.peerDeviceInfo.set(peerId, {
+                        peerId,
+                        deviceName: 'Unknown Device',
+                        browser: 'Unknown',
+                        timestamp: Date.now()
+                    });
+                }
+
+                this.emit('connection', { peerId, deviceInfo: this.peerDeviceInfo.get(peerId) });
+            } else {
+                console.error('Handshake timed out and connection is NOT open. Aborting accept.');
+                this.off('handshake-complete', handshakeHandler);
+                toast.dismiss('accepting');
+                toast.error('Connection failed (Not Open)');
+                // Cleanup
+                this.connections.delete(peerId);
+                this.peerDeviceInfo.delete(peerId);
+                this.emit('disconnection', { peerId });
             }
-
-            this.emit('connection', { peerId, deviceInfo: this.peerDeviceInfo.get(peerId) });
         }, 3000); // 3 second max wait
     }
 
     public rejectConnection(peerId: string): void {
         const conn = this.pendingConnections.get(peerId);
         if (conn) {
-            conn.close();
+            // Try to send rejection message if open
+            if (conn.open) {
+                try {
+                    conn.send({ type: 'connection-rejected' });
+                } catch (e) {
+                    console.error('Failed to send rejection message', e);
+                }
+            }
+            // Close after short delay to ensure message sends? 
+            // PeerJS is fast, but a small tick might help.
+            setTimeout(() => {
+                conn.close();
+            }, 100);
+
             this.pendingConnections.delete(peerId);
             toast.success('Connection rejected');
         }

@@ -175,7 +175,44 @@ export function Home() {
         [connections, sendFile, sendZip]
     );
 
+    // Global Paste Handler for Quick Send
+    React.useEffect(() => {
+        const handlePaste = async (e: ClipboardEvent) => {
+            // Ignore if pasting into an input/textarea
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            if (e.clipboardData && e.clipboardData.files.length > 0 && connections.length > 0) {
+                e.preventDefault();
+                const pastedFiles = Array.from(e.clipboardData.files);
+
+                toast('Detected ' + pastedFiles.length + ' file(s) from clipboard');
+
+                // Reuse drop logic
+                const shouldZip = pastedFiles.length > 1;
+
+                try {
+                    if (shouldZip) {
+                        toast('Zipping ' + pastedFiles.length + ' files...');
+                        await sendZip(connections[0].id, pastedFiles);
+                        analytics.trackEvent('File', 'PasteBatch', 'Clipboard', pastedFiles.length);
+                    } else {
+                        await sendFile(pastedFiles[0], connections[0].id);
+                        analytics.trackEvent('File', 'Paste', 'Clipboard', pastedFiles[0].size);
+                    }
+                } catch (error: any) {
+                    toast.error(error.message || 'File transfer failed');
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
+    }, [connections, sendFile, sendZip]);
+
     const handleScan = useCallback((scannedPeerId: string) => {
+        setTargetPeerId(scannedPeerId);
         connectToPeer(scannedPeerId);
         setShowScanner(false);
     }, [connectToPeer]);
@@ -231,6 +268,7 @@ export function Home() {
                         onCancel={() => setShowConnectDialog(false)}
                         connectionStatus={connectionStatus}
                         onRetry={() => retryConnection(targetPeerId)}
+                        onScanClick={() => setShowScanner(true)}
                     />
                 )}
             </AnimatePresence>
